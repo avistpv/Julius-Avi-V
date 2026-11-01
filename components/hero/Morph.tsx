@@ -6,17 +6,16 @@ import * as THREE from 'three';
 import { useCaesarGeometry } from '@/components/three/useCaesar';
 import { store, sky, morphShared } from '@/lib/store';
 
-// Caesar — the hero object.
-// On load (after the preloader) a cloud of blue dust gathers onto the surface of the bust; then a
-// glowing scan line rises through the figure: below it the glass bust is already there, above it
-// the particles still hold the shape and flare out as the line passes (store.assemble, time-driven).
-// On scroll the finished bust glides from its hero pose on the right into the intro's figure slot
-// (store.morph, scroll-driven), so it reverses cleanly.
+// Dust -> Caesar.
+// In the hero a round cloud of blue dust floats under the slogan: it breathes, swirls slowly and
+// shies away from the mouse. As you scroll into the intro the dust flies onto the surface of
+// Caesar's bust in the figure slot; then a glowing scan line rises through the figure: below it
+// the glass bust is already there, above it the particles still hold the shape and flare out as
+// the line passes. Pure function of scroll (store.morph), so it reverses cleanly.
 
 const COUNT = 14000;
 export const SWEEP_START = 0.8; // particles have landed; the scan line starts rising
 export const SWEEP_END = 1.0; // ...and has passed the top of the head
-const ASSEMBLE_TIME = 2.8; // seconds for the whole gathering
 
 const vert = /* glsl */ `
   uniform mat4 uMatA;
@@ -27,6 +26,9 @@ const vert = /* glsl */ `
   uniform float uPixel;
   uniform float uSweepY;   // world-space height of the scan line
   uniform float uBand;     // half-height of its glow
+  uniform vec2 uMouse;     // pointer, world units on the z = 0 plane
+  uniform float uRadius;   // cloud radius, world units
+  uniform float uRepel;    // 0..1 how much the dust still answers the mouse
   attribute vec3 aA;
   attribute vec3 aB;
   attribute vec4 aRand;
@@ -42,8 +44,16 @@ const vert = /* glsl */ `
     float e = t * t * (3.0 - 2.0 * t);
     float arc = sin(e * 3.14159265);
     vec3 p = mix(a, b, e);
-    // A lazy swirl on the way in.
-    p += (aRand.yzw * 2.0 - 1.0) * arc * 0.35 + vec3(0.0, arc * 0.25, arc * 0.4);
+    // In the cloud: breathe and drift, and part around the pointer.
+    float idle = 1.0 - e;
+    p += vec3(sin(uTime * 0.6 + aRand.y * 6.2832), cos(uTime * 0.5 + aRand.z * 6.2832), sin(uTime * 0.4 + aRand.w * 6.2832))
+         * 0.05 * uRadius * idle;
+    vec2 dm = p.xy - uMouse;
+    float dist = length(dm);
+    float push = exp(-(dist * dist) / (uRadius * uRadius * 0.28)) * uRepel * idle;
+    p.xy += (dm / max(dist, 1e-4)) * push * uRadius * 0.7;
+    // A lazy swirl on the way to the bust.
+    p += (aRand.yzw * 2.0 - 1.0) * arc * 0.45 + vec3(0.0, arc * 0.3, arc * 0.5);
     p.xy += vec2(sin(uTime * 1.3 + aRand.x * 40.0), cos(uTime * 1.1 + aRand.y * 40.0)) * 0.04 * arc;
     vArc = arc;
     float dy = p.y - uSweepY;
@@ -73,15 +83,16 @@ const frag = /* glsl */ `
   }
 `;
 
-// Where the dust starts: a wide, loose cloud around the bust (bust-local units, bust ≈ 1 tall).
+// Where the dust lives in the hero: a soft ball of radius 1 (scaled per frame), denser inside,
+// with a thin haze around it.
 function sampleCloud(): Float32Array {
   const out = new Float32Array(COUNT * 3);
   const p = new THREE.Vector3();
   for (let i = 0; i < COUNT; i++) {
-    p.randomDirection().multiplyScalar(0.6 + Math.pow(Math.random(), 0.6) * 1.6);
-    p.x *= 1.6;
-    p.z *= 0.7;
-    out.set([p.x, p.y + 0.1, p.z], i * 3);
+    const halo = Math.random() < 0.12;
+    const r = halo ? 1 + Math.pow(Math.random(), 2) * 0.6 : Math.cbrt(Math.random()) * 0.98;
+    p.randomDirection().multiplyScalar(r);
+    out.set([p.x, p.y, p.z * 0.75], i * 3);
   }
   return out;
 }
@@ -145,8 +156,6 @@ function findHead(geo: THREE.BufferGeometry) {
   morphShared.headRadius = r / n;
 }
 
-const ease = (t: number) => t * t * (3 - 2 * t);
-
 export default function Morph() {
   const geo = useCaesarGeometry();
   const bust = useRef<THREE.Mesh>(null);
@@ -192,6 +201,9 @@ export default function Morph() {
         uAlpha: { value: 0 },
         uSweepY: { value: -1e4 },
         uBand: { value: 0.05 },
+        uMouse: { value: new THREE.Vector2(1e4, 1e4) },
+        uRadius: { value: 1 },
+        uRepel: { value: 0 },
       },
     });
     const pts = new THREE.Points(g, mat);
@@ -204,56 +216,61 @@ export default function Morph() {
     (points?.material as THREE.Material | undefined)?.dispose();
   }, [points]);
 
+  const cloudMat = useMemo(() => new THREE.Matrix4(), []);
+  const mouseW = useMemo(() => new THREE.Vector2(1e4, 1e4), []);
+  const mouseT = useMemo(() => new THREE.Vector2(), []);
+  const appear = useRef(0);
+
   useFrame((state, dt) => {
     const b = bust.current;
     if (!b || !points) return;
     const time = state.clock.elapsedTime;
-
-    // Time-driven assembly once the preloader has gone.
-    if (store.ready) store.assemble = Math.min(1, store.assemble + dt / ASSEMBLE_TIME);
-    const m = store.assemble;
-
-    // Hero pose: right of the headline, a little above centre, drifting up as the page scrolls.
+    const m = store.morph;
     const vw = viewport.width, vh = viewport.height;
-    const hx = (0.74 - 0.5) * vw;
-    const hy = -(0.5 - 0.5) * vh + store.heroProgress * vh * 0.18;
-    const hs = vh * 0.72;
-    // Intro pose: over the figure slot (DOM px -> world units on the z = 0 plane).
-    const { x, y, w, h } = store.anchor;
-    const ax = ((x + w / 2) / size.width - 0.5) * vw;
-    const ay = -((y + h / 2) / size.height - 0.5) * vh;
-    const as = (h / size.height) * vh * 0.94;
-    const k = w > 0 ? ease(store.morph) : 0;
-    const cx = THREE.MathUtils.lerp(hx, ax, k);
-    const cy = THREE.MathUtils.lerp(hy, ay, k);
-    const s = THREE.MathUtils.lerp(hs, as, k);
+    if (store.ready) appear.current = Math.min(1, appear.current + dt / 1.6);
 
+    // The cloud sits under the slogan and scrolls with the page until the morph takes over.
+    const pxToWorld = vh / size.height;
+    const R = vh * 0.21 * THREE.MathUtils.smoothstep(appear.current, 0, 1);
+    const cloudY = -vh * 0.17 + store.scroll * pxToWorld;
+    cloudMat.compose(new THREE.Vector3(0, cloudY, 0), new THREE.Quaternion(), new THREE.Vector3(R, R, R));
+
+    // Place the bust over the intro slot (DOM px -> world units on the z = 0 plane).
+    const { x, y, w, h } = store.anchor;
+    const cx = ((x + w / 2) / size.width - 0.5) * vw;
+    const cy = -((y + h / 2) / size.height - 0.5) * vh;
+    const s = (h / size.height) * vh * 0.94;
     b.position.set(cx, cy + Math.sin(time * 0.8) * s * 0.012, 0);
     b.scale.setScalar(s);
-    // Faces the reader, turns a little after the mouse; turns away and back while travelling.
-    const turn = Math.sin(k * Math.PI) * 0.9;
-    b.rotation.y = THREE.MathUtils.damp(b.rotation.y, -0.35 + store.mouse.x * 0.55 + Math.sin(time * 0.35) * 0.12 + turn, 2.5, dt);
+    b.rotation.y = THREE.MathUtils.damp(b.rotation.y, store.mouse.x * 0.7 + Math.sin(time * 0.35) * 0.18, 2.5, dt);
     b.rotation.x = THREE.MathUtils.damp(b.rotation.x, -store.mouse.y * 0.15, 2.5, dt);
     b.updateMatrixWorld();
     morphShared.bustMatrix.copy(b.matrixWorld);
     morphShared.bustReady = true;
 
     // Scan line: from just under the pedestal to just over the head.
-    const sk = THREE.MathUtils.smoothstep(m, SWEEP_START, SWEEP_END);
-    const sweepY = m >= SWEEP_END ? 1e4 : THREE.MathUtils.lerp(cy - s * 0.53, cy + s * 0.53, sk);
+    const k = THREE.MathUtils.smoothstep(m, SWEEP_START, SWEEP_END);
+    const sweepY = m >= SWEEP_END ? 1e4 : THREE.MathUtils.lerp(cy - s * 0.53, cy + s * 0.53, k);
     clip.constant = sweepY;
     b.visible = m > SWEEP_START;
 
+    // Pointer in world units, eased so the dust parts smoothly.
+    mouseT.set(store.mouse.x * vw * 0.5, store.mouse.y * vh * 0.5);
+    mouseW.lerp(mouseT, 0.12);
+
     const u = (points.material as THREE.ShaderMaterial).uniforms;
-    u.uMatA.value.copy(b.matrixWorld);
+    u.uMatA.value.copy(cloudMat);
     u.uMatB.value.copy(b.matrixWorld);
     u.uM.value = m;
     u.uTime.value = time;
     u.uPixel.value = dpr;
-    u.uAlpha.value = THREE.MathUtils.smoothstep(m, 0, 0.08);
+    u.uAlpha.value = THREE.MathUtils.smoothstep(appear.current, 0, 0.6);
     u.uSweepY.value = m > SWEEP_START ? sweepY : -1e4;
     u.uBand.value = s * 0.035;
-    points.visible = m > 0 && m < SWEEP_END;
+    u.uMouse.value.copy(mouseW);
+    u.uRadius.value = Math.max(R, 1e-3);
+    u.uRepel.value = 1 - THREE.MathUtils.smoothstep(m, 0, 0.25);
+    points.visible = appear.current > 0 && m < SWEEP_END;
   });
 
   if (!geo || !buffer) return null;

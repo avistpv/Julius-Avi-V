@@ -10,8 +10,7 @@ export const store = {
   ready: false, // preloader finished -> start intro animations
 
   // Word + wreath -> Caesar transition (driven by scroll, see SmoothScroll).
-  morph: 0, // 0 = bust in its hero pose, 1 = bust sitting in the intro slot (scroll-driven)
-  assemble: 0, // 0..1 after the preloader: particles gather into the glass bust (time-driven)
+  morph: 0, // 0 = dust cloud in the hero, 1 = glass bust sitting in the intro slot (scroll-driven)
   anchor: { x: 0, y: 0, w: 0, h: 0 }, // intro bust slot, viewport px
   sceneActive: true, // false once the intro has scrolled away -> stop rendering the 3D layer
   velocity: 0, // Lenis scroll velocity (px per frame), drives the warp speed

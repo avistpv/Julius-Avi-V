@@ -3,7 +3,6 @@ import { Suspense, useEffect, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Environment, Lightformer, PerformanceMonitor } from '@react-three/drei';
 import Sky from './Sky';
-import Wreath from './Wreath';
 import Morph from './Morph';
 import { store } from '@/lib/store';
 
@@ -56,7 +55,6 @@ export default function Scene() {
       <ambientLight intensity={0.4} />
       <directionalLight position={[-3, 5, 6]} intensity={1.2} />
 
-      <Wreath />
       <Suspense fallback={null}>
         <Morph />
       </Suspense>

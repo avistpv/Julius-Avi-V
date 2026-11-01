@@ -8,11 +8,11 @@ import styles from './Hero.module.css';
 
 const Scene = dynamic(() => import('./Scene'), { ssr: false });
 
-const HEADLINE = ['We build', 'products', 'that ship.'];
-const INSCRIPTION = 'JULIUS';
+const HEADLINE = ['We build products', 'that ship.'];
 
-// I · ORIGO. Paper, a name cut into it like an inscription, and Caesar in glass gathering out of
-// dust on the right (drawn by the 3D layer behind this section).
+// I · ORIGO. Paper, the slogan in the middle, and under it a cloud of blue dust that breathes,
+// shies away from the mouse, and gathers into Caesar's bust as you scroll into the intro
+// (the dust and the bust are drawn by the 3D layer behind this section).
 export default function Hero() {
   const [ready, setReady] = useState(false);
 
@@ -35,7 +35,7 @@ export default function Hero() {
     };
   }, []);
 
-  // The 3D layer stays up while the bust is on screen (hero + intro), then stops rendering.
+  // The 3D layer stays up while the dust / bust is on screen (hero + intro), then stops rendering.
   const canvasRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let raf = 0;
@@ -60,17 +60,12 @@ export default function Hero() {
       </div>
       <Preloader done={ready} />
 
-      <section className={`${styles.hero} ${ready ? styles.isReady : ''}`} aria-label="Intro">
-        <Ruler />
-
+      <section className={`${styles.hero} ${ready ? styles.isReady : ''}`} data-cursor="ring-dark" aria-label="Intro">
         <header className={styles.header}>
           <a href="/" className={styles.logo} aria-label="Julius — home">
             <Reveal i={0}>JULIUS</Reveal>
             <Reveal i={0} className={styles.logoDim}>.STUDIO</Reveal>
           </a>
-          <p className={`mono ${styles.tagline}`}>
-            <Reveal i={1}>Software studio · Petah Tikva · Est. MMXXI</Reveal>
-          </p>
           <nav className={`${styles.nav} mono`}>
             {['Work', 'About', 'Contact'].map((l, i) => (
               <a key={l} href={`#${l.toLowerCase()}`} className={styles.navLink}>
@@ -84,34 +79,20 @@ export default function Hero() {
           </nav>
         </header>
 
-        {/* The name, cut into the paper like letters into stone. */}
-        <div className={styles.inscription} aria-hidden>
-          {INSCRIPTION.split('').map((ch, i) => (
-            <span key={i} className={styles.glyphMask}>
-              <span className={styles.glyph} style={{ transitionDelay: `${0.2 + i * 0.06}s` }}>{ch}</span>
-            </span>
-          ))}
-        </div>
-
         <h1 className={styles.headline} aria-label="We build products that ship.">
-          <Reveal i={3} className={`roman ${styles.kicker}`}>I · Origo</Reveal>
+          <Reveal i={2} className={`roman ${styles.kicker}`}>I · Origo</Reveal>
           {HEADLINE.map((line, i) => (
             <span key={line} className={styles.line} aria-hidden>
-              <span className={styles.lineInner} style={{ transitionDelay: `${0.45 + i * 0.09}s` }}>
+              <span className={styles.lineInner} style={{ transitionDelay: `${0.35 + i * 0.1}s` }}>
                 {line}
               </span>
             </span>
           ))}
         </h1>
 
-        <p className={`mono ${styles.aside}`}>
-          <Reveal i={4}>Strategy, design and code.</Reveal>
-          <Reveal i={5}>One team, one roof — from idea to launch.</Reveal>
-        </p>
-
         <footer className={`${styles.footer} mono`}>
           <Reveal i={5}><Clock /></Reveal>
-          <Reveal i={6} className={styles.figure}>Fig. I — C · Ivlivs · Caesar, in glass</Reveal>
+          <Reveal i={5} className={styles.tagline}>Software studio · Petah Tikva · Est. MMXXI</Reveal>
           <Reveal i={6} className={styles.scrollHint}><ScrollHint /></Reveal>
         </footer>
       </section>
@@ -136,23 +117,6 @@ function Preloader({ done }: { done: boolean }) {
     <div className={`${styles.preloader} ${done ? styles.preloaderDone : ''}`} aria-hidden>
       <span className={styles.preloaderBar} />
       <span className={`roman ${styles.preloaderMotto}`}>Veni · Vidi · Vici</span>
-    </div>
-  );
-}
-
-// A measuring edge down the left margin: a tick every 5% of the screen, a numeral every quarter.
-function Ruler() {
-  return (
-    <div className={styles.ruler} aria-hidden>
-      {Array.from({ length: 21 }, (_, i) => (
-        <span
-          key={i}
-          className={`${styles.tick} ${i % 5 === 0 ? styles.tickMajor : ''}`}
-          style={{ top: `${i * 5}%` }}
-        >
-          {i % 5 === 0 && i > 0 && i < 20 && <i className="roman">{toRoman(i / 5)}</i>}
-        </span>
-      ))}
     </div>
   );
 }

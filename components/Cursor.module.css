@@ -36,6 +36,7 @@
   transition: transform 0.45s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.3s ease;
 }
 .isRing { transform: scale(1); opacity: 1; }
+.isRingDark { transform: scale(1); opacity: 1; border-color: var(--ink); mix-blend-mode: normal; }
 .isRingBig { transform: scale(1.7); opacity: 1; border-width: 1px; }
 
 .label {

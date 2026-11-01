@@ -5,6 +5,7 @@ import Intro from '@/components/intro/Intro';
 import Work from '@/components/work/Work';
 import Jump from '@/components/jump/Jump';
 import Legio from '@/components/legio/Legio';
+import Finale from '@/components/finale/Finale';
 
 export default function Home() {
   return (
@@ -16,7 +17,7 @@ export default function Home() {
       <Work />
       <Jump />
       <Legio />
-      {/* Next: numbers + testimonial, final section. */}
+      <Finale />
     </main>
   );
 }

@@ -34,6 +34,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   [data-cursor='view'], [data-cursor='view'] *,
   [data-cursor='ring'], [data-cursor='ring'] *,
   [data-cursor='ring-big'], [data-cursor='ring-big'] * { cursor: none; }
+  [data-cursor='default'], [data-cursor='default'] * { cursor: auto; }
 }
 
 @media (max-width: 900px) {

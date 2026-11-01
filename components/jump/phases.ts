@@ -16,17 +16,18 @@ export const ARCH_ASPECT = 2688 / 1520;
 export const STEPS = [
   { from: 0.46, to: 0.58, latin: 'Veni.', line: 'We listen.' },
   { from: 0.58, to: 0.7, latin: 'Vidi.', line: 'We design.' },
-  { from: 0.7, to: 0.82, latin: 'Vici.', line: 'We ship.' },
+  { from: 0.72, to: 0.84, latin: 'Vici.', line: 'We ship.' },
 ];
 
-// Painting -> etching dissolve runs through VIDI.
-export const ETCH_FROM = 0.58;
-export const ETCH_TO = 0.72;
+// Painting -> etching dissolve plays between the VIDI and VICI resting points, so neither
+// resting point lands on a half-dissolved frame.
+export const ETCH_FROM = 0.64;
+export const ETCH_TO = 0.75;
 // Flight into the stars runs through VICI and the values.
-export const FLY_FROM = 0.72;
-export const FLY_TO = 0.95;
+export const FLY_FROM = 0.76;
+export const FLY_TO = 0.96;
 
-export const VALUES_FROM = 0.84;
+export const VALUES_FROM = 0.86;
 export const VALUES_TO = 1.01;
 
 export const VALUES = [
@@ -38,7 +39,7 @@ export const VALUES = [
 
 // Resting points: when the user stops scrolling inside the section, we glide to the nearest one
 // so the page never sits on a half-state (paper half torn, two words' props overlapping...).
-export const SNAPS = [0.22, 0.52, 0.64, 0.76, 0.92];
+export const SNAPS = [0.22, 0.52, 0.61, 0.79, 0.93];
 
 export const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 export const range = (p: number, a: number, b: number) => clamp01((p - a) / (b - a));

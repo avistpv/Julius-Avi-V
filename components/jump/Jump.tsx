@@ -3,9 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { store } from '@/lib/store';
 import { scramble } from '@/lib/scramble';
 import {
-  ARCH_ASPECT, OPENING, PUSH_FROM, PUSH_TO, REVEAL_END, STEPS, VALUES, VALUES_FROM, VALUES_TO,
+  ARCH_ASPECT, ETCH_FROM, ETCH_TO, OPENING, PUSH_FROM, PUSH_TO, REVEAL_END, STEPS, VALUES, VALUES_FROM, VALUES_TO,
   range, smooth,
 } from './phases';
+import SceneBoundary from '@/components/hero/SceneBoundary';
+import Painting from './Painting';
+import Props from './Props';
 import styles from './Jump.module.css';
 
 const INSCRIPTION = 'VENI · VIDI · VICI';
@@ -18,9 +21,9 @@ export default function Jump() {
   const [step, setStep] = useState(-1);
   const [values, setValues] = useState(false);
   const [intro, setIntro] = useState(false);
+  const [dark, setDark] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const landRef = useRef<HTMLDivElement>(null);
-  const shadeRef = useRef<HTMLDivElement>(null);
+  const stepRef = useRef<HTMLHeadingElement>(null);
   const fontProbe = useRef<HTMLSpanElement>(null);
   const latinRef = useRef<HTMLSpanElement>(null);
   const lineRef = useRef<HTMLSpanElement>(null);
@@ -46,7 +49,7 @@ export default function Jump() {
     window.addEventListener('resize', resize);
 
     let raf = 0;
-    let s = -2, v: boolean | null = null, i: boolean | null = null;
+    let s = -2, v: boolean | null = null, i: boolean | null = null, d: boolean | null = null;
     let lastKey = '';
     const m = { x: 0, y: 0 };
     const loop = () => {
@@ -58,14 +61,12 @@ export default function Jump() {
       const push = range(p, PUSH_FROM, PUSH_TO);
       const after = range(p, PUSH_TO, 1);
 
-      // Landscape: far away, moves little — a slow zoom-out as we enter, then a gentle drift.
-      const landScale = 1.32 - 0.3 * smooth(push) + 0.06 * after;
-      if (landRef.current) {
-        landRef.current.style.transform =
-          `translate(${(-m.x * 5).toFixed(1)}px, ${(m.y * 4 - after * 30).toFixed(1)}px) scale(${landScale.toFixed(4)})`;
+      // The headline drifts up and grows a little while its step lasts, so it moves with the camera.
+      const st = STEPS.find((x) => p >= x.from && p < x.to);
+      if (stepRef.current && st) {
+        const t = range(p, st.from, st.to);
+        stepRef.current.style.transform = `translateY(${(-t * 60).toFixed(1)}px) scale(${(0.96 + t * 0.1).toFixed(3)})`;
       }
-      // Seen through the arch the landscape is a touch darker; it brightens once we're through.
-      if (shadeRef.current) shadeRef.current.style.opacity = (0.35 * (1 - smooth(push))).toFixed(3);
 
       // Arch: settles while the paper tears away, then flies past exponentially fast.
       const archScale = (1.1 - 0.1 * reveal) * Math.pow(14, push * push);
@@ -111,6 +112,8 @@ export default function Jump() {
       const ns = STEPS.findIndex((st) => p >= st.from && p < st.to);
       const nv = p >= VALUES_FROM && p < VALUES_TO;
       const ni = p > REVEAL_END * 0.6 && p < PUSH_FROM + 0.03;
+      const nd = range(p, ETCH_FROM, ETCH_TO) > 0.45; // night world -> light text
+      if (nd !== d) { d = nd; setDark(nd); }
       if (ns !== s) { s = ns; setStep(ns); }
       if (nv !== v) { v = nv; setValues(nv); }
       if (ni !== i) { i = ni; setIntro(ni); }
@@ -141,11 +144,13 @@ export default function Jump() {
   }, [values]);
 
   return (
-    <section className={styles.jump} data-jump aria-label="How we work">
+    <section className={`${styles.jump} ${dark ? styles.dark : ''}`} data-jump aria-label="How we work">
       <div className={styles.stage}>
-        <div ref={landRef} className={styles.land} aria-hidden />
-        <div ref={shadeRef} className={styles.shade} aria-hidden />
+        <SceneBoundary fallback={<div className={styles.land} aria-hidden />}>
+          <Painting />
+        </SceneBoundary>
         <canvas ref={canvasRef} className={styles.arch} aria-hidden />
+        <Props />
         {/* Hidden probe so the canvas can use the Roman web font by its generated family name. */}
         <span ref={fontProbe} className={`roman ${styles.probe}`} aria-hidden>I</span>
 
@@ -154,7 +159,7 @@ export default function Jump() {
           <span className="mono">From idea to launch. Scroll to enter.</span>
         </div>
 
-        <h2 className={`${styles.step} ${step >= 0 ? styles.on : ''}`} aria-live="polite">
+        <h2 ref={stepRef} className={`${styles.step} ${step >= 0 ? styles.on : ''}`} aria-live="polite">
           <span className={`roman ${styles.gate}`}>{step >= 0 ? `Porta ${['I', 'II', 'III'][step]}` : ''}</span>
           <span ref={latinRef} className={styles.latin} />
           <span ref={lineRef} className={styles.line} />

@@ -6,7 +6,9 @@
   margin-top: -100vh;
   height: 600vh;
   background: #1a130c;
+  --fg: var(--ink);
 }
+.dark { --fg: #f3f0e8; }
 
 .stage {
   position: sticky;
@@ -16,15 +18,12 @@
   overflow: hidden;
 }
 
-/* Far layer: the Roman landscape. */
+/* Far layer without WebGL: the landscape as a plain image. */
 .land {
   position: absolute;
-  inset: -6% 0; /* spare height for the upward drift */
+  inset: 0;
   background: url('/jump/landscape.webp') center 60% / cover no-repeat;
-  transform-origin: 50% 62%;
-  will-change: transform;
 }
-.shade { position: absolute; inset: 0; background: #120c06; pointer-events: none; }
 
 /* Near layer: the arch, drawn on a viewport-sized canvas (see Jump.tsx). */
 .arch {
@@ -63,8 +62,9 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  color: var(--ink);
+  color: var(--fg);
   font-weight: 700;
+  transition: opacity 0.5s ease, color 0.6s ease;
   text-transform: uppercase;
   line-height: 1;
 }
@@ -91,7 +91,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 24px;
-  color: var(--ink);
+  color: var(--fg);
 }
 .value {
   display: flex;
@@ -99,7 +99,7 @@
   gap: 4px;
   font-size: clamp(16px, 1.45vw, 24px);
   line-height: 1.2;
-  border-top: 1px solid rgba(11, 12, 12, 0.35);
+  border-top: 1px solid currentColor;
   padding-top: 12px;
   transform: translateY(10px);
   transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1);

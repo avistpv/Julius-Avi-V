@@ -1,7 +1,9 @@
 // Scroll map of III · Virtvtes (0..1 of the pinned section).
 // The section starts one screen early, under the work grid: the paper tears away and reveals a
 // painted triumphal arch, the camera pushes through its opening into the landscape behind it,
-// then Veni / Vidi / Vici and the four values appear in the sky.
+// then each word changes the scene: VENI — the painting (camera keeps drifting in);
+// VIDI — the painting dissolves block by block into a glowing etching (the drawing under it);
+// VICI — we fly on into the dark, the lines fall behind and only the stars remain, with the values.
 
 export const REVEAL_END = 0.2; // paper has fully left the screen
 export const PUSH_FROM = 0.26; // start flying into the arch
@@ -16,6 +18,13 @@ export const STEPS = [
   { from: 0.58, to: 0.7, latin: 'Vidi.', line: 'We design.' },
   { from: 0.7, to: 0.82, latin: 'Vici.', line: 'We ship.' },
 ];
+
+// Painting -> etching dissolve runs through VIDI.
+export const ETCH_FROM = 0.58;
+export const ETCH_TO = 0.72;
+// Flight into the stars runs through VICI and the values.
+export const FLY_FROM = 0.72;
+export const FLY_TO = 0.95;
 
 export const VALUES_FROM = 0.84;
 export const VALUES_TO = 1.01;

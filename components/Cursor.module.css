@@ -1,0 +1,39 @@
+.cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* "view": a small blue dot with the label beside it — compact so the hover particles stay visible. */
+.disc {
+  position: absolute;
+  left: -6px;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: scale(0);
+  transition: transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+}
+.isView { transform: scale(1); }
+
+.label {
+  position: absolute;
+  left: 20px;
+  top: -5px;
+  white-space: nowrap;
+  padding: 1px 6px;
+  font-size: 12px !important;
+  line-height: 18px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: var(--accent);
+  clip-path: inset(0 100% 0 0);
+  transition: clip-path 0.45s cubic-bezier(0.19, 1, 0.22, 1) 0.05s;
+}
+.isView .label { clip-path: inset(0 0 0 0); }

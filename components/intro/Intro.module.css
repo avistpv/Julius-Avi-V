@@ -1,0 +1,49 @@
+/* Intro — measured from the reference: 60px text over columns 5–12, image in column 1. */
+.intro {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  padding: 96px var(--pad) 40px;
+  color: var(--ink);
+}
+
+.fig { grid-column: 1 / span 3; align-self: start; padding: 0 var(--inner) 0 0; }
+.figMedia {
+  position: relative;
+  aspect-ratio: 332 / 400;
+  overflow: hidden;
+}
+.caption {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-top: 8px;
+}
+.caption :global(.roman) { font-size: 11px; opacity: 0.7; }
+.caption :global(.mono) { font-size: 12px; text-transform: uppercase; opacity: 0.5; }
+
+.text { grid-column: 5 / span 8; padding: 0 var(--inner); }
+
+.lead,
+.more {
+  font-size: clamp(30px, 4.2vw, 84px);
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+.more { margin-top: 0.4em; }
+
+.link {
+  text-decoration: underline;
+  text-decoration-thickness: 0.06em;
+  text-underline-offset: 0.1em;
+  transition: color 0.3s;
+}
+.link:hover { color: var(--accent); }
+
+@media (max-width: 900px) {
+  .intro { grid-template-columns: 1fr; padding-top: 64px; row-gap: 32px; }
+  .fig { grid-column: 1; max-width: 260px; }
+  .text { grid-column: 1; }
+}

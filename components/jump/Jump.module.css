@@ -1,0 +1,99 @@
+.jump {
+  position: relative;
+  z-index: 2;
+  height: 650vh; /* scroll length of the whole flight */
+  --fg: var(--ink);
+}
+.dark { --fg: #fff; }
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+}
+
+/* Without WebGL: a calm gradient behind the words. */
+.fallback {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, #0b1030 0%, #3a2a7a 55%, #f3a873 100%);
+}
+
+/* Fade helpers */
+.intro, .step, .values { pointer-events: none; transition: opacity 0.5s ease, color 0.6s ease; opacity: 0; }
+.on { opacity: 1; }
+
+/* Before the flight: label at the bottom. */
+.intro {
+  position: absolute;
+  left: calc(var(--pad) + var(--inner));
+  right: calc(var(--pad) + var(--inner));
+  bottom: 36px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  color: var(--ink);
+}
+.intro :global(.roman) { opacity: 0.7; }
+.intro :global(.mono) { text-transform: uppercase; font-size: 13px; }
+
+/* The line for each gate, sitting in the arch's opening. */
+.step {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--fg);
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.gate { opacity: 0.6; margin-bottom: 18px; min-height: 20px; }
+.latin {
+  font-family: var(--roman);
+  font-weight: 600;
+  font-size: clamp(40px, 7vw, 140px);
+  letter-spacing: 0.06em;
+  margin-bottom: 0.12em;
+}
+.line {
+  font-size: clamp(36px, 5.6vw, 120px);
+  letter-spacing: -0.012em;
+  min-height: 1em;
+}
+
+/* Values floating in space. */
+.values { position: absolute; inset: 0; color: #fff; }
+.value {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  font-size: clamp(16px, 1.45vw, 24px);
+  line-height: 1.2;
+  max-width: 22ch;
+  transform: translateY(8px);
+  transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+}
+.values.on .value { transform: none; }
+.value [data-v-title] { font-weight: 500; }
+.value [data-v-text] { opacity: 0.7; }
+
+/* White flash on crossing a gate (opacity driven from JS). */
+.flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, #fff 0%, rgba(255, 255, 255, 0.85) 45%, rgba(255, 255, 255, 0.6) 100%);
+  opacity: 0;
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+@media (max-width: 900px) {
+  .intro { flex-direction: column; gap: 6px; }
+  .value { max-width: 18ch; }
+}

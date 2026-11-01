@@ -1,0 +1,71 @@
+.layer {
+  position: absolute;
+  inset: 0;
+  color: #f3f0e8;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.line {
+  fill: none;
+  stroke: rgba(255, 240, 210, 0.45);
+  stroke-width: 1;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+.star { position: absolute; width: 0; height: 0; }
+.core {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff6e4;
+  box-shadow: 0 0 10px 2px rgba(255, 236, 196, 0.8), 0 0 40px 10px rgba(255, 210, 140, 0.35);
+  transform: scale(calc(0.25 + 0.75 * var(--on)));
+  opacity: calc(0.35 + 0.65 * var(--on));
+  transition: transform 0.7s cubic-bezier(0.19, 1, 0.22, 1), opacity 0.4s ease;
+}
+/* A ring that bursts outward when the star lights up. */
+.halo {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 236, 196, 0.8);
+  transform: scale(calc(1 + 7 * var(--on)));
+  opacity: calc(1 - var(--on));
+  transition: transform 1.2s cubic-bezier(0.19, 1, 0.22, 1), opacity 1.1s ease;
+}
+
+.label {
+  position: absolute;
+  left: 18px;
+  top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: max-content;
+  max-width: 26ch;
+  opacity: var(--on);
+  transform: translateY(calc((1 - var(--on)) * 10px));
+  transition: opacity 0.6s ease 0.15s, transform 0.9s cubic-bezier(0.19, 1, 0.22, 1) 0.15s;
+}
+.num { opacity: 0.55; }
+.title { font-weight: 700; text-transform: uppercase; font-size: clamp(22px, 2.3vw, 40px); line-height: 1; letter-spacing: -0.01em; min-height: 1em; }
+.text { font-size: clamp(14px, 1.15vw, 19px); line-height: 1.3; opacity: 0.75; min-height: 1.3em; }
+
+/* The last star's label would run off the right edge: hang it to the left. */
+.star:last-child .label { left: auto; right: 18px; align-items: flex-end; text-align: right; }
+
+@media (max-width: 900px) {
+  .label { max-width: 18ch; }
+  .title { font-size: 18px; }
+  .text { font-size: 12px; }
+}

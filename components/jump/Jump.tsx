@@ -3,12 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { store } from '@/lib/store';
 import { scramble } from '@/lib/scramble';
 import {
-  ARCH_ASPECT, ETCH_FROM, ETCH_TO, OPENING, PUSH_FROM, PUSH_TO, REVEAL_END, STEPS, VALUES, VALUES_FROM, VALUES_TO,
+  ARCH_ASPECT, ETCH_FROM, ETCH_TO, OPENING, PUSH_FROM, PUSH_TO, REVEAL_END, STEPS,
   range, smooth,
 } from './phases';
 import SceneBoundary from '@/components/hero/SceneBoundary';
 import Painting from './Painting';
 import Props from './Props';
+import Constellation from './Constellation';
 import styles from './Jump.module.css';
 
 const INSCRIPTION = 'VENI · VIDI · VICI';
@@ -19,7 +20,6 @@ const INSCRIPTION = 'VENI · VIDI · VICI';
 // The arch is drawn on a canvas: a DOM layer scaled 14x falls apart into raster tiles in Chrome.
 export default function Jump() {
   const [step, setStep] = useState(-1);
-  const [values, setValues] = useState(false);
   const [intro, setIntro] = useState(false);
   const [dark, setDark] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -27,7 +27,6 @@ export default function Jump() {
   const fontProbe = useRef<HTMLSpanElement>(null);
   const latinRef = useRef<HTMLSpanElement>(null);
   const lineRef = useRef<HTMLSpanElement>(null);
-  const valueRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Scroll-linked layers, written straight to the DOM / canvas every frame.
   useEffect(() => {
@@ -49,7 +48,7 @@ export default function Jump() {
     window.addEventListener('resize', resize);
 
     let raf = 0;
-    let s = -2, v: boolean | null = null, i: boolean | null = null, d: boolean | null = null;
+    let s = -2, i: boolean | null = null, d: boolean | null = null;
     let lastKey = '';
     const m = { x: 0, y: 0 };
     const loop = () => {
@@ -110,12 +109,10 @@ export default function Jump() {
       }
 
       const ns = STEPS.findIndex((st) => p >= st.from && p < st.to);
-      const nv = p >= VALUES_FROM && p < VALUES_TO;
       const ni = p > REVEAL_END * 0.6 && p < PUSH_FROM + 0.03;
       const nd = range(p, ETCH_FROM, ETCH_TO) > 0.45; // night world -> light text
       if (nd !== d) { d = nd; setDark(nd); }
       if (ns !== s) { s = ns; setStep(ns); }
-      if (nv !== v) { v = nv; setValues(nv); }
       if (ni !== i) { i = ni; setIntro(ni); }
       raf = requestAnimationFrame(loop);
     };
@@ -130,18 +127,6 @@ export default function Jump() {
     const b = scramble(lineRef.current, STEPS[step].line.toUpperCase(), 760);
     return () => { a(); b(); };
   }, [step]);
-
-  useEffect(() => {
-    if (!values) return;
-    const stops = VALUES.flatMap((val, k) => {
-      const el = valueRefs.current[k];
-      if (!el) return [];
-      const t = el.querySelector<HTMLElement>('[data-v-title]')!;
-      const x = el.querySelector<HTMLElement>('[data-v-text]')!;
-      return [scramble(t, val.title, 500 + k * 120), scramble(x, val.text, 800 + k * 120)];
-    });
-    return () => stops.forEach((f) => f());
-  }, [values]);
 
   return (
     <section className={`${styles.jump} ${dark ? styles.dark : ''}`} data-jump aria-label="How we work">
@@ -165,20 +150,7 @@ export default function Jump() {
           <span ref={lineRef} className={styles.line} />
         </h2>
 
-        <div className={`${styles.values} ${values ? styles.on : ''}`}>
-          {VALUES.map((v, k) => (
-            <div
-              key={v.title}
-              ref={(el) => { valueRefs.current[k] = el; }}
-              className={styles.value}
-              style={{ transitionDelay: `${k * 0.08}s` }}
-            >
-              <span className="roman">{['I', 'II', 'III', 'IV'][k]}</span>
-              <span data-v-title>{v.title}</span>
-              <span data-v-text>{v.text}</span>
-            </div>
-          ))}
-        </div>
+        <Constellation />
       </div>
     </section>
   );

@@ -39,7 +39,7 @@ export const VALUES = [
 
 // Resting points: when the user stops scrolling inside the section, we glide to the nearest one
 // so the page never sits on a half-state (paper half torn, two words' props overlapping...).
-export const SNAPS = [0.22, 0.52, 0.61, 0.79, 0.93];
+export const SNAPS = [0.22, 0.52, 0.61, 0.79, 0.975];
 
 export const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 export const range = (p: number, a: number, b: number) => clamp01((p - a) / (b - a));

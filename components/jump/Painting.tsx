@@ -65,9 +65,14 @@ const FRAG = /* glsl */ `
 
     // Night world: deep blue, stars fixed to the screen, drifting slowly.
     vec3 night = mix(vec3(0.025, 0.03, 0.075), vec3(0.07, 0.06, 0.12), vUv.y);
-    vec2 sp = (vUv + uOffset * 0.4 + vec2(0.0, uFly * 0.08)) * uRes / 3.0;
-    float sh = hash(floor(sp));
-    float star = smoothstep(0.987, 1.0, sh) * (0.45 + 0.55 * sin(uTime * 1.7 + sh * 60.0)) * (0.6 + 1.1 * uFly);
+    vec2 sp = (vUv + uOffset * 0.4 + vec2(0.0, uFly * 0.08)) * uRes / 7.0;
+    vec2 cellId = floor(sp);
+    float sh = hash(cellId);
+    vec2 jitter = vec2(hash(cellId + 3.1), hash(cellId + 7.7)) * 0.6 - 0.3;
+    float dstar = length(fract(sp) - 0.5 - jitter);
+    float size = 0.06 + 0.1 * hash(cellId + 11.0);
+    float star = step(0.955, sh) * smoothstep(size, 0.0, dstar)
+               * (0.5 + 0.5 * sin(uTime * 1.7 + sh * 60.0)) * (0.7 + 1.0 * uFly);
     vec3 ink = mix(vec3(1.0, 0.72, 0.38), vec3(1.0, 0.95, 0.85), e);
     vec3 etch = night + ink * (e * 1.5 + hatch) + vec3(star);
 

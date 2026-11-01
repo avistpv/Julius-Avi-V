@@ -31,6 +31,16 @@ export default function Cursor() {
       setLabel(t?.dataset.cursorLabel ?? '');
     };
     const onLeaveWindow = () => setMode(null);
+    // Scrolling moves the page under a still pointer: re-read what is beneath it.
+    let scrollRaf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(scrollRaf);
+      scrollRaf = requestAnimationFrame(() => {
+        const t = document.elementFromPoint(tx, ty)?.closest<HTMLElement>('[data-cursor]');
+        setMode(t?.dataset.cursor ?? null);
+        setLabel(t?.dataset.cursorLabel ?? '');
+      });
+    };
 
     const loop = () => {
       // Slight lag makes the disc feel weighty rather than glued to the pointer.
@@ -44,7 +54,10 @@ export default function Cursor() {
     window.addEventListener('pointermove', onMove, { passive: true });
     document.addEventListener('pointerover', onOver);
     document.documentElement.addEventListener('pointerleave', onLeaveWindow);
+    window.addEventListener('scroll', onScroll, { passive: true });
     return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(scrollRaf);
       cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onMove);
       document.removeEventListener('pointerover', onOver);

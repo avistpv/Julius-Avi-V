@@ -36,7 +36,7 @@
 .probe { position: absolute; left: -9999px; top: 0; visibility: hidden; }
 
 /* Fade helpers */
-.intro, .step, .values { pointer-events: none; transition: opacity 0.5s ease; opacity: 0; }
+.intro, .step { pointer-events: none; transition: opacity 0.5s ease; opacity: 0; }
 .on { opacity: 1; }
 
 .intro {
@@ -82,34 +82,6 @@
   min-height: 1em;
 }
 
-/* The four values: a row across the sky. */
-.values {
-  position: absolute;
-  left: calc(var(--pad) + var(--inner));
-  right: calc(var(--pad) + var(--inner));
-  top: 16vh;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
-  color: var(--fg);
-}
-.value {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: clamp(16px, 1.45vw, 24px);
-  line-height: 1.2;
-  border-top: 1px solid currentColor;
-  padding-top: 12px;
-  transform: translateY(10px);
-  transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1);
-}
-.value :global(.roman) { opacity: 0.6; margin-bottom: 8px; }
-.values.on .value { transform: none; }
-.value [data-v-title] { font-weight: 700; text-transform: uppercase; }
-.value [data-v-text] { opacity: 0.75; }
-
 @media (max-width: 900px) {
   .intro { flex-direction: column; gap: 6px; }
-  .values { grid-template-columns: 1fr 1fr; row-gap: 28px; }
 }

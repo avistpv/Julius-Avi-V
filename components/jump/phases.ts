@@ -36,6 +36,10 @@ export const VALUES = [
   { title: 'Partnership.', text: 'Partners, not vendors.' },
 ];
 
+// Resting points: when the user stops scrolling inside the section, we glide to the nearest one
+// so the page never sits on a half-state (paper half torn, two words' props overlapping...).
+export const SNAPS = [0.22, 0.52, 0.64, 0.76, 0.92];
+
 export const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 export const range = (p: number, a: number, b: number) => clamp01((p - a) / (b - a));
 export const smooth = (t: number) => t * t * (3 - 2 * t);

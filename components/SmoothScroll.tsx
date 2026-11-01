@@ -4,6 +4,7 @@ import Lenis from 'lenis';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { store } from '@/lib/store';
+import { SNAPS } from '@/components/jump/phases';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -42,6 +43,29 @@ export default function SmoothScroll() {
     };
     lenis.on('scroll', onScroll);
     onScroll();
+
+    // Scene snapping in the jump section: ~150ms after the last scroll movement, glide to the
+    // nearest resting point. User input interrupts the glide (Lenis stops programmatic scrolls).
+    let snapTimer = 0;
+    const snap = () => {
+      const j = document.querySelector<HTMLElement>('[data-jump]');
+      if (!j || Math.abs(lenis.velocity) > 0.05) return;
+      const vh = window.innerHeight;
+      const top = j.offsetTop;
+      const len = j.offsetHeight - vh;
+      const p = (lenis.scroll - top) / len;
+      if (p < 0.08 || p > 0.97) return; // entering / leaving — leave the user alone
+      let best = SNAPS[0];
+      for (const s of SNAPS) if (Math.abs(s - p) < Math.abs(best - p)) best = s;
+      const target = top + len * best;
+      if (Math.abs(target - lenis.scroll) < 2) return;
+      lenis.scrollTo(target, { duration: 1.1, easing: (t: number) => 1 - Math.pow(1 - t, 3) });
+    };
+    const queueSnap = () => {
+      window.clearTimeout(snapTimer);
+      snapTimer = window.setTimeout(snap, 150);
+    };
+    lenis.on('scroll', queueSnap);
     // Layout can shift without scrolling (resize, web fonts) — recompute the bust slot then too.
     window.addEventListener('resize', onScroll);
     document.fonts?.ready.then(onScroll);
@@ -60,6 +84,7 @@ export default function SmoothScroll() {
     window.addEventListener('pointermove', onMove);
 
     return () => {
+      window.clearTimeout(snapTimer);
       gsap.ticker.remove(tick);
       window.removeEventListener('resize', onScroll);
       window.removeEventListener('pointermove', onMove);

@@ -95,11 +95,11 @@ export default function Props() {
         const el = refs.current[k];
         if (!el) return;
         const st = STEPS[pr.step];
-        // Props live a little longer than the word: enter just before it, leave just after.
-        const t = range(p, st.from - 0.02, st.to + 0.02);
+        // Props are fully gone before the next word's arrive (no two sets on screen at once).
+        const t = range(p, st.from - 0.01, st.to - 0.01);
         if (t <= 0 || t >= 1) { el.style.opacity = '0'; el.style.visibility = 'hidden'; return; }
         el.style.visibility = 'visible';
-        const fade = Math.min(range(t, 0, 0.18), range(t, 1, 0.84));
+        const fade = Math.min(range(t, 0, 0.14), range(t, 1, 0.86));
         el.style.opacity = fade.toFixed(3);
         const rise = (0.5 - t) * 220 * pr.depth; // rises with the scroll, nearer = faster
         const px = m.x * 34 * pr.depth;

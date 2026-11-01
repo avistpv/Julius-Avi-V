@@ -3,29 +3,51 @@ import { useEffect, useRef, useState } from 'react';
 import { store } from '@/lib/store';
 import { scramble } from '@/lib/scramble';
 import {
-  OPENING, PUSH_FROM, PUSH_TO, REVEAL_END, STEPS, VALUES, VALUES_FROM, VALUES_TO,
+  ARCH_ASPECT, OPENING, PUSH_FROM, PUSH_TO, REVEAL_END, STEPS, VALUES, VALUES_FROM, VALUES_TO,
   range, smooth,
 } from './phases';
 import styles from './Jump.module.css';
 
+const INSCRIPTION = 'VENI · VIDI · VICI';
+
 // III · VIRTVTES — a painted triumphal arch revealed under the torn paper of the work grid.
 // Scrolling pushes the camera through its opening into the Roman landscape (2.5D: the arch
 // grows much faster than the landscape behind it), where Veni / Vidi / Vici and the values appear.
+// The arch is drawn on a canvas: a DOM layer scaled 14x falls apart into raster tiles in Chrome.
 export default function Jump() {
   const [step, setStep] = useState(-1);
   const [values, setValues] = useState(false);
   const [intro, setIntro] = useState(false);
-  const archRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const landRef = useRef<HTMLDivElement>(null);
   const shadeRef = useRef<HTMLDivElement>(null);
+  const fontProbe = useRef<HTMLSpanElement>(null);
   const latinRef = useRef<HTMLSpanElement>(null);
   const lineRef = useRef<HTMLSpanElement>(null);
   const valueRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Scroll-linked layer transforms, written straight to the DOM every frame.
+  // Scroll-linked layers, written straight to the DOM / canvas every frame.
   useEffect(() => {
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext('2d')!;
+    const img = new Image();
+    img.src = '/jump/arch.webp';
+    let imgReady = false;
+    img.decode().then(() => { imgReady = true; }).catch(() => { img.onload = () => { imgReady = true; }; });
+
+    let W = 0, H = 0, dpr = 1;
+    const resize = () => {
+      dpr = Math.min(1.5, window.devicePixelRatio || 1);
+      W = canvas.clientWidth; H = canvas.clientHeight;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+
     let raf = 0;
     let s = -2, v: boolean | null = null, i: boolean | null = null;
+    let lastKey = '';
     const m = { x: 0, y: 0 };
     const loop = () => {
       const p = store.jump;
@@ -36,15 +58,6 @@ export default function Jump() {
       const push = range(p, PUSH_FROM, PUSH_TO);
       const after = range(p, PUSH_TO, 1);
 
-      // Arch: settles while the paper tears away, then flies past exponentially fast.
-      const archScale = (1.1 - 0.1 * reveal) * Math.pow(14, push * push);
-      if (archRef.current) {
-        const a = archRef.current;
-        a.style.transform =
-          `translate(-50%, -50%) translate(${(-m.x * 12 * (1 - push)).toFixed(1)}px, ${(m.y * 8 * (1 - push)).toFixed(1)}px) scale(${archScale.toFixed(4)})`;
-        a.style.opacity = (1 - range(push, 0.8, 1)).toFixed(3);
-        a.style.visibility = push >= 1 ? 'hidden' : 'visible';
-      }
       // Landscape: far away, moves little — a slow zoom-out as we enter, then a gentle drift.
       const landScale = 1.32 - 0.3 * smooth(push) + 0.06 * after;
       if (landRef.current) {
@@ -53,6 +66,47 @@ export default function Jump() {
       }
       // Seen through the arch the landscape is a touch darker; it brightens once we're through.
       if (shadeRef.current) shadeRef.current.style.opacity = (0.35 * (1 - smooth(push))).toFixed(3);
+
+      // Arch: settles while the paper tears away, then flies past exponentially fast.
+      const archScale = (1.1 - 0.1 * reveal) * Math.pow(14, push * push);
+      const alpha = 1 - range(push, 0.8, 1);
+      const key = `${archScale.toFixed(4)}|${m.x.toFixed(3)}|${m.y.toFixed(3)}|${alpha.toFixed(3)}|${W}x${H}|${imgReady}`;
+      if (key !== lastKey) {
+        lastKey = key;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, W, H);
+        if (imgReady && alpha > 0 && push < 1) {
+          // The arch box behaves like `cover` (its opening keeps fixed coordinates).
+          const bw = Math.max(W, H * ARCH_ASPECT);
+          const bh = bw / ARCH_ASPECT;
+          const bx = (W - bw) / 2 - m.x * 12 * (1 - push);
+          const by = (H - bh) / 2 + m.y * 8 * (1 - push);
+          const ox = bx + bw * OPENING.x;
+          const oy = by + bh * OPENING.y;
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          ctx.translate(ox, oy);
+          ctx.scale(archScale, archScale);
+          ctx.translate(-ox, -oy);
+          ctx.drawImage(img, bx, by, bw, bh);
+          // Carved into the blank tablet on the attic.
+          const fam = fontProbe.current ? getComputedStyle(fontProbe.current).fontFamily : 'serif';
+          const size = bw * 0.031;
+          ctx.font = `600 ${size}px ${fam}`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${size * 0.14}px`;
+          const tx = bx + bw / 2 + size * 0.07; // compensate trailing letter-spacing
+          const ty = by + bh * 0.116;
+          ctx.fillStyle = 'rgba(255, 236, 196, 0.55)';
+          ctx.fillText(INSCRIPTION, tx, ty + size * 0.04);
+          ctx.fillStyle = 'rgba(30, 18, 6, 0.5)';
+          ctx.fillText(INSCRIPTION, tx, ty - size * 0.03);
+          ctx.fillStyle = 'rgba(74, 50, 26, 0.78)';
+          ctx.fillText(INSCRIPTION, tx, ty);
+          ctx.restore();
+        }
+      }
 
       const ns = STEPS.findIndex((st) => p >= st.from && p < st.to);
       const nv = p >= VALUES_FROM && p < VALUES_TO;
@@ -63,7 +117,7 @@ export default function Jump() {
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
   }, []);
 
   // Decode each new line from random glyphs.
@@ -91,14 +145,9 @@ export default function Jump() {
       <div className={styles.stage}>
         <div ref={landRef} className={styles.land} aria-hidden />
         <div ref={shadeRef} className={styles.shade} aria-hidden />
-        <div
-          ref={archRef}
-          className={styles.arch}
-          style={{ transformOrigin: `${OPENING.x * 100}% ${OPENING.y * 100}%` }}
-          aria-hidden
-        >
-          <span className={styles.inscription}>Veni · Vidi · Vici</span>
-        </div>
+        <canvas ref={canvasRef} className={styles.arch} aria-hidden />
+        {/* Hidden probe so the canvas can use the Roman web font by its generated family name. */}
+        <span ref={fontProbe} className={`roman ${styles.probe}`} aria-hidden>I</span>
 
         <div className={`${styles.intro} ${intro ? styles.on : ''}`}>
           <span className="roman">III · Virtvtes</span>

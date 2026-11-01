@@ -26,31 +26,15 @@
 }
 .shade { position: absolute; inset: 0; background: #120c06; pointer-events: none; }
 
-/* Near layer: the arch, sized like `cover` but as a real box so its opening has fixed coordinates. */
+/* Near layer: the arch, drawn on a viewport-sized canvas (see Jump.tsx). */
 .arch {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: max(100vw, 176.8vh);
-  aspect-ratio: 2688 / 1520;
-  background: url('/jump/arch.webp') center / 100% 100% no-repeat;
-  will-change: transform, opacity;
-  container-type: inline-size;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
-/* Carved into the blank tablet on the attic. */
-.inscription {
-  position: absolute;
-  left: 50%;
-  top: 11.6%;
-  transform: translate(-50%, -50%);
-  white-space: nowrap;
-  font-family: var(--roman);
-  font-weight: 600;
-  font-size: 3.1cqw;
-  letter-spacing: 0.14em;
-  color: rgba(74, 50, 26, 0.78);
-  text-shadow: 0 0.04em 0 rgba(255, 236, 196, 0.55), 0 -0.03em 0 rgba(30, 18, 6, 0.5);
-}
+.probe { position: absolute; left: -9999px; top: 0; visibility: hidden; }
 
 /* Fade helpers */
 .intro, .step, .values { pointer-events: none; transition: opacity 0.5s ease; opacity: 0; }

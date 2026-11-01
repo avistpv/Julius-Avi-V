@@ -9,6 +9,7 @@ import { prefersReducedMotion } from '@/lib/motion';
 // Hover effect on project images. Alternative kept in the repo: './HoverParticles' (magnet particles).
 import HoverDistort from './HoverDistort';
 import TornEdge from '@/components/TornEdge';
+import Tether from './Tether';
 import styles from './Work.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -80,10 +81,11 @@ export default function Work() {
       ))}
 
       <div className={styles.more}>
-        <a href="/work" className={`mono ${styles.moreLink}`} data-cursor="view" data-cursor-label="All">
+        <a href="/work" className={`mono ${styles.moreLink}`} data-cursor="view" data-cursor-label="All" data-tether>
           [ All {toRoman(TOTAL_PROJECTS)} projects ] <span aria-hidden>↗</span>
         </a>
       </div>
+      <Tether selector="[data-tether]" />
       <TornEdge />
     </section>
   );

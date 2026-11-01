@@ -4,21 +4,19 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { MeshTransmissionMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import { useCaesarGeometry } from '@/components/three/useCaesar';
-import { makeJuliusCurve } from './juliusPath';
 import { store, sky, morphShared } from '@/lib/store';
 
-// Word -> Caesar.
-// As you scroll out of the hero, the glass JULIUS breaks into particles sampled on its surface;
-// they arc over and settle onto the surface of Caesar's bust in the intro's slot. Then a glowing
-// scan line rises through the figure: below it the glass bust is already there, above it the
-// particles still hold the shape and flare out as the line passes. Pure function of scroll, so it
-// reverses cleanly.
+// Caesar — the hero object.
+// On load (after the preloader) a cloud of blue dust gathers onto the surface of the bust; then a
+// glowing scan line rises through the figure: below it the glass bust is already there, above it
+// the particles still hold the shape and flare out as the line passes (store.assemble, time-driven).
+// On scroll the finished bust glides from its hero pose on the right into the intro's figure slot
+// (store.morph, scroll-driven), so it reverses cleanly.
 
 const COUNT = 14000;
-const WORD_RADIUS = 0.23; // must match JuliusWord
-export const SWAP_IN = 0.05; // word -> particles
 export const SWEEP_START = 0.8; // particles have landed; the scan line starts rising
 export const SWEEP_END = 1.0; // ...and has passed the top of the head
+const ASSEMBLE_TIME = 2.8; // seconds for the whole gathering
 
 const vert = /* glsl */ `
   uniform mat4 uMatA;
@@ -44,8 +42,8 @@ const vert = /* glsl */ `
     float e = t * t * (3.0 - 2.0 * t);
     float arc = sin(e * 3.14159265);
     vec3 p = mix(a, b, e);
-    // Fly out and up a little mid-way, with a lazy swirl.
-    p += (aRand.yzw * 2.0 - 1.0) * arc * 0.75 + vec3(0.0, arc * 0.5, arc * 0.6);
+    // A lazy swirl on the way in.
+    p += (aRand.yzw * 2.0 - 1.0) * arc * 0.35 + vec3(0.0, arc * 0.25, arc * 0.4);
     p.xy += vec2(sin(uTime * 1.3 + aRand.x * 40.0), cos(uTime * 1.1 + aRand.y * 40.0)) * 0.04 * arc;
     vArc = arc;
     float dy = p.y - uSweepY;
@@ -75,25 +73,15 @@ const frag = /* glsl */ `
   }
 `;
 
-function sampleWord(): Float32Array {
-  // Random points on the surface of the JULIUS tube (+ the i-dot).
-  const { curve, dot } = makeJuliusCurve();
+// Where the dust starts: a wide, loose cloud around the bust (bust-local units, bust ≈ 1 tall).
+function sampleCloud(): Float32Array {
   const out = new Float32Array(COUNT * 3);
   const p = new THREE.Vector3();
-  const frames = curve.computeFrenetFrames(600, false);
   for (let i = 0; i < COUNT; i++) {
-    if (i < COUNT * 0.03) {
-      p.randomDirection().multiplyScalar(WORD_RADIUS * 1.2).add(dot);
-    } else {
-      const u = Math.random();
-      const k = Math.min(599, Math.floor(u * 600));
-      const c = curve.getPointAt(u);
-      const ang = Math.random() * Math.PI * 2;
-      p.copy(c)
-        .addScaledVector(frames.normals[k], Math.cos(ang) * WORD_RADIUS)
-        .addScaledVector(frames.binormals[k], Math.sin(ang) * WORD_RADIUS);
-    }
-    out.set([p.x, p.y, p.z], i * 3);
+    p.randomDirection().multiplyScalar(0.6 + Math.pow(Math.random(), 0.6) * 1.6);
+    p.x *= 1.6;
+    p.z *= 0.7;
+    out.set([p.x, p.y + 0.1, p.z], i * 3);
   }
   return out;
 }
@@ -157,6 +145,8 @@ function findHead(geo: THREE.BufferGeometry) {
   morphShared.headRadius = r / n;
 }
 
+const ease = (t: number) => t * t * (3 - 2 * t);
+
 export default function Morph() {
   const geo = useCaesarGeometry();
   const bust = useRef<THREE.Mesh>(null);
@@ -181,7 +171,7 @@ export default function Morph() {
     if (!geo) return null;
     findHead(geo);
     const g = new THREE.BufferGeometry();
-    g.setAttribute('aA', new THREE.BufferAttribute(sampleWord(), 3));
+    g.setAttribute('aA', new THREE.BufferAttribute(sampleCloud(), 3));
     g.setAttribute('aB', new THREE.BufferAttribute(sampleBust(geo), 3));
     const rnd = new Float32Array(COUNT * 4);
     for (let i = 0; i < rnd.length; i++) rnd[i] = Math.random();
@@ -215,37 +205,52 @@ export default function Morph() {
   }, [points]);
 
   useFrame((state, dt) => {
-    const m = store.morph;
     const b = bust.current;
     if (!b || !points) return;
     const time = state.clock.elapsedTime;
 
-    // Place the bust over the intro slot (DOM px -> world units on the z = 0 plane).
+    // Time-driven assembly once the preloader has gone.
+    if (store.ready) store.assemble = Math.min(1, store.assemble + dt / ASSEMBLE_TIME);
+    const m = store.assemble;
+
+    // Hero pose: right of the headline, a little above centre, drifting up as the page scrolls.
+    const vw = viewport.width, vh = viewport.height;
+    const hx = (0.74 - 0.5) * vw;
+    const hy = -(0.5 - 0.5) * vh + store.heroProgress * vh * 0.18;
+    const hs = vh * 0.72;
+    // Intro pose: over the figure slot (DOM px -> world units on the z = 0 plane).
     const { x, y, w, h } = store.anchor;
-    const cx = ((x + w / 2) / size.width - 0.5) * viewport.width;
-    const cy = -((y + h / 2) / size.height - 0.5) * viewport.height;
-    const s = (h / size.height) * viewport.height * 0.94;
+    const ax = ((x + w / 2) / size.width - 0.5) * vw;
+    const ay = -((y + h / 2) / size.height - 0.5) * vh;
+    const as = (h / size.height) * vh * 0.94;
+    const k = w > 0 ? ease(store.morph) : 0;
+    const cx = THREE.MathUtils.lerp(hx, ax, k);
+    const cy = THREE.MathUtils.lerp(hy, ay, k);
+    const s = THREE.MathUtils.lerp(hs, as, k);
+
     b.position.set(cx, cy + Math.sin(time * 0.8) * s * 0.012, 0);
     b.scale.setScalar(s);
-    b.rotation.y = THREE.MathUtils.damp(b.rotation.y, store.mouse.x * 0.7 + Math.sin(time * 0.35) * 0.18, 2.5, dt);
+    // Faces the reader, turns a little after the mouse; turns away and back while travelling.
+    const turn = Math.sin(k * Math.PI) * 0.9;
+    b.rotation.y = THREE.MathUtils.damp(b.rotation.y, -0.35 + store.mouse.x * 0.55 + Math.sin(time * 0.35) * 0.12 + turn, 2.5, dt);
     b.rotation.x = THREE.MathUtils.damp(b.rotation.x, -store.mouse.y * 0.15, 2.5, dt);
     b.updateMatrixWorld();
     morphShared.bustMatrix.copy(b.matrixWorld);
     morphShared.bustReady = true;
 
     // Scan line: from just under the pedestal to just over the head.
-    const k = THREE.MathUtils.smoothstep(m, SWEEP_START, SWEEP_END);
-    const sweepY = m >= SWEEP_END ? 1e4 : THREE.MathUtils.lerp(cy - s * 0.53, cy + s * 0.53, k);
+    const sk = THREE.MathUtils.smoothstep(m, SWEEP_START, SWEEP_END);
+    const sweepY = m >= SWEEP_END ? 1e4 : THREE.MathUtils.lerp(cy - s * 0.53, cy + s * 0.53, sk);
     clip.constant = sweepY;
     b.visible = m > SWEEP_START;
 
     const u = (points.material as THREE.ShaderMaterial).uniforms;
-    u.uMatA.value.copy(morphShared.wordMatrix);
+    u.uMatA.value.copy(b.matrixWorld);
     u.uMatB.value.copy(b.matrixWorld);
     u.uM.value = m;
     u.uTime.value = time;
     u.uPixel.value = dpr;
-    u.uAlpha.value = THREE.MathUtils.smoothstep(m, 0, SWAP_IN);
+    u.uAlpha.value = THREE.MathUtils.smoothstep(m, 0, 0.08);
     u.uSweepY.value = m > SWEEP_START ? sweepY : -1e4;
     u.uBand.value = s * 0.035;
     points.visible = m > 0 && m < SWEEP_END;

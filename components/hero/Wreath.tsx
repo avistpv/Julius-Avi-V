@@ -6,7 +6,9 @@ import { store, morphShared } from '@/lib/store';
 import { SWEEP_START } from './Morph';
 import { makeLaurel, makeLaurelMaterial, LEAF_COUNT } from '@/components/three/laurel';
 
-// The site's laurel "character" in the hero (geometry lives in components/three/laurel).
+// The laurel. It appears beside the gathering bust, then flies over and lands on Caesar's head
+// just as the scan line reaches it, melting into the bust's own carved laurel
+// (geometry lives in components/three/laurel).
 
 export default function Wreath() {
   const group = useRef<THREE.Group>(null!);
@@ -34,12 +36,12 @@ export default function Wreath() {
     if (store.ready) appear.current = Math.min(1, appear.current + dt * 0.7);
     const a = THREE.MathUtils.smoothstep(appear.current, 0.35, 1);
 
-    // Hero pose: bottom-right, like the cursor in the reference.
+    // Start pose: up and to the left of the bust.
     const unit = viewport.width / 1440; // 1 css px at 1440 wide
     const size = 62 * unit; // wreath radius ≈ 62 css px -> ~130px across
     heroPos.set(
-      viewport.width * (0.85 - 0.5),
-      -viewport.height * (0.74 - 0.5) + store.heroProgress * viewport.height * 0.3 + Math.sin(time * 1.1) * 0.06,
+      viewport.width * (0.56 - 0.5),
+      -viewport.height * (0.26 - 0.5) + Math.sin(time * 1.1) * 0.06,
       0
     );
     idle.current.y = THREE.MathUtils.damp(idle.current.y, store.mouse.x * 0.6 + Math.sin(time * 0.5) * 0.25, 2.5, dt);
@@ -47,8 +49,8 @@ export default function Wreath() {
     idle.current.z = -0.18 + Math.sin(time * 0.7) * 0.05;
     heroQ.setFromEuler(idle.current);
 
-    // Flight to Caesar's head (word -> bust transition): lands flat on the head, shrinks to fit.
-    const k = THREE.MathUtils.smoothstep(store.morph, 0.08, 0.9);
+    // Flight to Caesar's head while the dust gathers: lands flat on the head, shrinks to fit.
+    const k = THREE.MathUtils.smoothstep(store.assemble, 0.2, 0.86);
     let pos = heroPos, scl = size * easeOutBack(a), q = heroQ;
     if (k > 0 && morphShared.bustReady) {
       const bm = morphShared.bustMatrix;
@@ -68,7 +70,7 @@ export default function Wreath() {
     g.quaternion.copy(q);
     g.scale.setScalar(scl + 0.0001);
     // The bust has its own carved laurel: ours melts away while the scan line climbs to the head.
-    const fade = 1 - THREE.MathUtils.smoothstep(store.morph, SWEEP_START + 0.1, SWEEP_START + 0.185);
+    const fade = 1 - THREE.MathUtils.smoothstep(store.assemble, SWEEP_START + 0.1, SWEEP_START + 0.185);
     material.opacity = fade;
     material.transparent = fade < 1;
     material.depthWrite = fade >= 1;

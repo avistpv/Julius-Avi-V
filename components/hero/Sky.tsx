@@ -4,9 +4,9 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { store, sky } from '@/lib/store';
 
-// Living "sky": soft diagonal bands of cream light drifting over pale blue.
-// Perf: the noise is rendered into a small offscreen texture (it's blurry by design, so low-res is invisible),
-// then stretched to full screen. The same texture is what the glass word refracts — no extra scene pass.
+// Living paper: the page's paper tone with a very faint drift of warm and cool light, like daylight
+// moving across a wall. Perf: rendered into a small offscreen texture (blurry by design), then
+// stretched to full screen. The same texture is what the glass bust refracts — no extra scene pass.
 const SKY_W = 384;
 
 const quadVert = /* glsl */ `
@@ -54,8 +54,7 @@ const skyFrag = /* glsl */ `
     vec2 p = (uv - 0.5) * vec2(uRes.x / uRes.y, 1.0);
     p += uMouse * 0.03;
 
-    // Bands run diagonally (top-right -> bottom-left), like the reference.
-    float a = -0.62;
+    float a = -0.9;
     p = mat2(cos(a), -sin(a), sin(a), cos(a)) * p;
 
     float t = uTime * 0.03;
@@ -63,19 +62,19 @@ const skyFrag = /* glsl */ `
     vec2 w = vec2(fbm(q + vec2(t, -t * 0.6)), fbm(q + vec2(4.2 - t * 0.8, 1.3 + t)));
     float n = fbm(q + 0.9 * w + vec2(t * 0.5, 0.0));
 
-    vec3 blue  = vec3(0.733, 0.847, 0.937);
-    vec3 deep  = vec3(0.639, 0.784, 0.918);
-    vec3 white = vec3(0.965, 0.976, 0.988);
-    vec3 cream = vec3(1.000, 0.957, 0.855);
+    vec3 paper = vec3(0.953, 0.949, 0.933);
+    vec3 cool  = vec3(0.925, 0.932, 0.940);
+    vec3 warm  = vec3(0.975, 0.962, 0.930);
+    vec3 light = vec3(0.990, 0.988, 0.980);
 
-    vec3 col = mix(blue, deep, smoothstep(0.75, 0.0, uv.y) * 0.55);
-    float light = smoothstep(-0.05, 0.75, n);
-    float warm = smoothstep(0.2, 0.9, n + 0.3 * w.x);
-    col = mix(col, white, light * 0.7);
-    col = mix(col, cream, warm * 0.6);
-    col *= 1.0 - 0.06 * length(uv - 0.5);
+    float lit = smoothstep(-0.05, 0.75, n);
+    float wrm = smoothstep(0.2, 0.9, n + 0.3 * w.x);
+    vec3 col = mix(paper, cool, smoothstep(0.8, 0.0, uv.y) * 0.5);
+    col = mix(col, light, lit * 0.6);
+    col = mix(col, warm, wrm * 0.5);
+    col *= 1.0 - 0.035 * length(uv - 0.5);
 
-    col = mix(col, vec3(0.953, 0.949, 0.933), uFade);
+    col = mix(col, paper, uFade);
     gl_FragColor = vec4(col, 1.0);
   }
 `;

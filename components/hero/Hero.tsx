@@ -9,7 +9,10 @@ import styles from './Hero.module.css';
 const Scene = dynamic(() => import('./Scene'), { ssr: false });
 
 const HEADLINE = ['We build', 'products', 'that ship.'];
+const INSCRIPTION = 'JULIUS';
 
+// I · ORIGO. Paper, a name cut into it like an inscription, and Caesar in glass gathering out of
+// dust on the right (drawn by the 3D layer behind this section).
 export default function Hero() {
   const [ready, setReady] = useState(false);
 
@@ -32,18 +35,15 @@ export default function Hero() {
     };
   }, []);
 
-  // As the hero scrolls away the 3D layer fades into the paper background (CSS blur was too costly).
+  // The 3D layer stays up while the bust is on screen (hero + intro), then stops rendering.
   const canvasRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let raf = 0;
-    let last = -1;
+    let last: boolean | null = null;
     const loop = () => {
-      const p = store.heroProgress;
-      if (canvasRef.current && (p !== last || p >= 1)) {
-        last = p;
-        // The sky itself fades to paper; the layer stays up while the bust is on screen in the intro.
-        canvasRef.current.style.visibility = store.sceneActive ? 'visible' : 'hidden';
-        canvasRef.current.style.setProperty('--hp', p.toFixed(3)); // used by the no-WebGL fallback sky
+      if (canvasRef.current && store.sceneActive !== last) {
+        last = store.sceneActive;
+        canvasRef.current.style.visibility = last ? 'visible' : 'hidden';
       }
       raf = requestAnimationFrame(loop);
     };
@@ -58,15 +58,19 @@ export default function Hero() {
           <Scene />
         </SceneBoundary>
       </div>
-      <Grid />
       <Preloader done={ready} />
 
       <section className={`${styles.hero} ${ready ? styles.isReady : ''}`} aria-label="Intro">
+        <Ruler />
+
         <header className={styles.header}>
           <a href="/" className={styles.logo} aria-label="Julius — home">
             <Reveal i={0}>JULIUS</Reveal>
             <Reveal i={0} className={styles.logoDim}>.STUDIO</Reveal>
           </a>
+          <p className={`mono ${styles.tagline}`}>
+            <Reveal i={1}>Software studio · Petah Tikva · Est. MMXXI</Reveal>
+          </p>
           <nav className={`${styles.nav} mono`}>
             {['Work', 'About', 'Contact'].map((l, i) => (
               <a key={l} href={`#${l.toLowerCase()}`} className={styles.navLink}>
@@ -80,38 +84,35 @@ export default function Hero() {
           </nav>
         </header>
 
-        <div className={styles.row}>
-          <p className={styles.lead}>
-            <Reveal i={1}>Software Studio</Reveal>
-            <Reveal i={2} className={styles.est}>Est · MMXXI</Reveal>
-          </p>
-          <p className="mono">
-            <Reveal i={2}>Strategy. Design. Code.</Reveal>
-            <Reveal i={3}>One team, one roof.</Reveal>
-          </p>
-          <p className={`mono ${styles.about}`}>
-            <Reveal i={3}>
-              Julius is a product studio from Petah Tikva. Founded by veterans of elite tech units, we design and build
-              software end to end — with AI built into how we work.
-            </Reveal>
-          </p>
+        {/* The name, cut into the paper like letters into stone. */}
+        <div className={styles.inscription} aria-hidden>
+          {INSCRIPTION.split('').map((ch, i) => (
+            <span key={i} className={styles.glyphMask}>
+              <span className={styles.glyph} style={{ transitionDelay: `${0.2 + i * 0.06}s` }}>{ch}</span>
+            </span>
+          ))}
         </div>
 
         <h1 className={styles.headline} aria-label="We build products that ship.">
           <Reveal i={3} className={`roman ${styles.kicker}`}>I · Origo</Reveal>
           {HEADLINE.map((line, i) => (
             <span key={line} className={styles.line} aria-hidden>
-              <span className={styles.lineInner} style={{ transitionDelay: `${0.35 + i * 0.09}s` }}>
+              <span className={styles.lineInner} style={{ transitionDelay: `${0.45 + i * 0.09}s` }}>
                 {line}
               </span>
             </span>
           ))}
         </h1>
 
+        <p className={`mono ${styles.aside}`}>
+          <Reveal i={4}>Strategy, design and code.</Reveal>
+          <Reveal i={5}>One team, one roof — from idea to launch.</Reveal>
+        </p>
+
         <footer className={`${styles.footer} mono`}>
-          <Reveal i={4}><Clock /></Reveal>
-          <Reveal i={4} className={styles.coords}><Coords /></Reveal>
-          <Reveal i={5} className={styles.scrollHint}><ScrollHint /></Reveal>
+          <Reveal i={5}><Clock /></Reveal>
+          <Reveal i={6} className={styles.figure}>Fig. I — C · Ivlivs · Caesar, in glass</Reveal>
+          <Reveal i={6} className={styles.scrollHint}><ScrollHint /></Reveal>
         </footer>
       </section>
     </>
@@ -139,24 +140,19 @@ function Preloader({ done }: { done: boolean }) {
   );
 }
 
-// Thin column guides with "+" marks at the intersections — the blueprint feel of the reference.
-function Grid() {
+// A measuring edge down the left margin: a tick every 5% of the screen, a numeral every quarter.
+function Ruler() {
   return (
-    <div className={styles.grid} aria-hidden>
-      <span className={styles.vLine} style={{ left: 'var(--pad)' }} />
-      <span className={styles.vLine} style={{ left: 'calc(var(--pad) + (100vw - 2 * var(--pad)) / 3)' }} />
-      <span className={styles.vLine} style={{ left: 'calc(var(--pad) + 2 * (100vw - 2 * var(--pad)) / 3)' }} />
-      <span className={styles.vLine} style={{ left: 'calc(100vw - var(--pad))' }} />
-      <span className={styles.hLine} style={{ top: '33vh' }} />
-      <span className={styles.hLine} style={{ top: '68vh' }} />
-      {['33vh', '68vh'].flatMap((top) =>
-        [
-          'var(--pad)',
-          'calc(var(--pad) + (100vw - 2 * var(--pad)) / 3)',
-          'calc(var(--pad) + 2 * (100vw - 2 * var(--pad)) / 3)',
-          'calc(100vw - var(--pad))',
-        ].map((left) => <span key={top + left} className={styles.cross} style={{ top, left }} />)
-      )}
+    <div className={styles.ruler} aria-hidden>
+      {Array.from({ length: 21 }, (_, i) => (
+        <span
+          key={i}
+          className={`${styles.tick} ${i % 5 === 0 ? styles.tickMajor : ''}`}
+          style={{ top: `${i * 5}%` }}
+        >
+          {i % 5 === 0 && i > 0 && i < 20 && <i className="roman">{toRoman(i / 5)}</i>}
+        </span>
+      ))}
     </div>
   );
 }
@@ -214,25 +210,6 @@ function Clock() {
       {offset} IL {clock} {deg}
     </button>
   );
-}
-
-function Coords() {
-  const ref = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    let raf = 0;
-    let x = 0, y = 0;
-    const pad = (n: number) => String(Math.max(0, Math.round(n))).padStart(4, '0');
-    const loop = () => {
-      // Ease the numbers so they roll rather than jump.
-      x += (store.pointer.x - x) * 0.2;
-      y += (store.pointer.y - y) * 0.2;
-      if (ref.current) ref.current.textContent = `${pad(x)} X ${pad(y)} Y`;
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-  return <span ref={ref}>0000 X 0000 Y</span>;
 }
 
 function ScrollHint() {

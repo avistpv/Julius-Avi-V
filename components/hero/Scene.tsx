@@ -3,7 +3,6 @@ import { Suspense, useEffect, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Environment, Lightformer, PerformanceMonitor } from '@react-three/drei';
 import Sky from './Sky';
-import JuliusWord from './JuliusWord';
 import Wreath from './Wreath';
 import Morph from './Morph';
 import { store } from '@/lib/store';
@@ -38,7 +37,7 @@ export default function Scene() {
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       camera={{ position: [0, 0, 10], fov: 32, near: 0.1, far: 50 }}
       onCreated={({ gl }) => {
-        gl.setClearColor('#c3dcf0');
+        gl.setClearColor('#f3f2ee');
         // First frame is on screen -> let the preloader finish.
         requestAnimationFrame(() => window.dispatchEvent(new Event('scene-ready')));
       }}
@@ -47,17 +46,16 @@ export default function Scene() {
 
       {/* Studio lighting baked into an environment map: soft boxes give the glossy, balloon-like highlights. */}
       <Environment resolution={256} frames={1}>
-        <color attach="background" args={['#cfe3f6']} />
+        <color attach="background" args={['#efece6']} />
         <Lightformer form="rect" intensity={4} position={[0, 5, 2]} scale={[10, 2, 1]} rotation-x={Math.PI / 2} />
         <Lightformer form="rect" intensity={2.5} position={[-5, 1, 3]} scale={[3, 6, 1]} rotation-y={Math.PI / 2} />
         <Lightformer form="rect" intensity={2} position={[5, 0, 3]} scale={[3, 6, 1]} rotation-y={-Math.PI / 2} />
         <Lightformer form="ring" color="#fff1d6" intensity={3} position={[2, 3, 4]} scale={2} />
-        <Lightformer form="rect" color="#7fa9ee" intensity={1} position={[0, -4, 1]} scale={[10, 2, 1]} rotation-x={-Math.PI / 2} />
+        <Lightformer form="rect" color="#9fbcf0" intensity={1} position={[0, -4, 1]} scale={[10, 2, 1]} rotation-x={-Math.PI / 2} />
       </Environment>
       <ambientLight intensity={0.4} />
       <directionalLight position={[-3, 5, 6]} intensity={1.2} />
 
-      <JuliusWord />
       <Wreath />
       <Suspense fallback={null}>
         <Morph />

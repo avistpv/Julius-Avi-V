@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   description: 'Julius is a software studio from Petah Tikva. Strategy, design and engineering — from idea to launch.',
 };
 
-export const viewport: Viewport = { themeColor: '#c3dcf0' };
+export const viewport: Viewport = { themeColor: '#f3f2ee' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -4,7 +4,7 @@ Read **CONCEPT.md** first (all product/design decisions). This file = current st
 
 ## Run / check
 - `npm run dev` → http://localhost:3000 (Next 15, React 19, R3F 9, drei 10, three 0.187, GSAP + ScrollTrigger, Lenis).
-- `?motion=1` forces animations on (the OS "reduce motion" setting otherwise disables GSAP reveals — `lib/motion.ts`).
+- In dev the OS "reduce motion" setting is ignored (motion always on); in production `?motion=1` forces it on (`lib/motion.ts`).
 - **Visual checks:** the app's built-in browser pane has WebGL blocked (too many reloads) and throttles rAF when hidden. Use
   `node tools/shot.mjs "http://localhost:3000/?motion=1" .shots/name "[data-jump]" "0.1,0.3"` — headless system Chrome with
   SwiftShader WebGL; screenshots land in `.shots/` (git-ignored). Second arg form: selector `-` + absolute px.

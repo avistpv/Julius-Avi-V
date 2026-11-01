@@ -1,10 +1,12 @@
 .jump {
   position: relative;
-  z-index: 2;
-  height: 650vh; /* scroll length of the whole flight */
-  --fg: var(--ink);
+  z-index: 1;
+  /* Starts one screen early, underneath the work grid, so the paper tears away over a scene
+     that is already pinned. */
+  margin-top: -100vh;
+  height: 600vh;
+  background: #1a130c;
 }
-.dark { --fg: #fff; }
 
 .stage {
   position: sticky;
@@ -14,18 +16,46 @@
   overflow: hidden;
 }
 
-/* Without WebGL: a calm gradient behind the words. */
-.fallback {
+/* Far layer: the Roman landscape. */
+.land {
   position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, #0b1030 0%, #3a2a7a 55%, #f3a873 100%);
+  inset: -6% 0; /* spare height for the upward drift */
+  background: url('/jump/landscape.webp') center 60% / cover no-repeat;
+  transform-origin: 50% 62%;
+  will-change: transform;
+}
+.shade { position: absolute; inset: 0; background: #120c06; pointer-events: none; }
+
+/* Near layer: the arch, sized like `cover` but as a real box so its opening has fixed coordinates. */
+.arch {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100vw, 176.8vh);
+  aspect-ratio: 2688 / 1520;
+  background: url('/jump/arch.webp') center / 100% 100% no-repeat;
+  will-change: transform, opacity;
+  container-type: inline-size;
+}
+/* Carved into the blank tablet on the attic. */
+.inscription {
+  position: absolute;
+  left: 50%;
+  top: 11.6%;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  font-family: var(--roman);
+  font-weight: 600;
+  font-size: 3.1cqw;
+  letter-spacing: 0.14em;
+  color: rgba(74, 50, 26, 0.78);
+  text-shadow: 0 0.04em 0 rgba(255, 236, 196, 0.55), 0 -0.03em 0 rgba(30, 18, 6, 0.5);
 }
 
 /* Fade helpers */
-.intro, .step, .values { pointer-events: none; transition: opacity 0.5s ease, color 0.6s ease; opacity: 0; }
+.intro, .step, .values { pointer-events: none; transition: opacity 0.5s ease; opacity: 0; }
 .on { opacity: 1; }
 
-/* Before the flight: label at the bottom. */
 .intro {
   position: absolute;
   left: calc(var(--pad) + var(--inner));
@@ -34,21 +64,22 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  color: var(--ink);
+  color: #f6eedf;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.45);
 }
-.intro :global(.roman) { opacity: 0.7; }
 .intro :global(.mono) { text-transform: uppercase; font-size: 13px; }
 
-/* The line for each gate, sitting in the arch's opening. */
+/* Veni / Vidi / Vici, in the open sky. */
 .step {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  top: 14vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   text-align: center;
-  color: var(--fg);
+  color: var(--ink);
   font-weight: 700;
   text-transform: uppercase;
   line-height: 1;
@@ -67,33 +98,34 @@
   min-height: 1em;
 }
 
-/* Values floating in space. */
-.values { position: absolute; inset: 0; color: #fff; }
-.value {
+/* The four values: a row across the sky. */
+.values {
   position: absolute;
+  left: calc(var(--pad) + var(--inner));
+  right: calc(var(--pad) + var(--inner));
+  top: 16vh;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  color: var(--ink);
+}
+.value {
   display: flex;
   flex-direction: column;
+  gap: 4px;
   font-size: clamp(16px, 1.45vw, 24px);
   line-height: 1.2;
-  max-width: 22ch;
-  transform: translateY(8px);
+  border-top: 1px solid rgba(11, 12, 12, 0.35);
+  padding-top: 12px;
+  transform: translateY(10px);
   transition: transform 0.8s cubic-bezier(0.19, 1, 0.22, 1);
 }
+.value :global(.roman) { opacity: 0.6; margin-bottom: 8px; }
 .values.on .value { transform: none; }
-.value [data-v-title] { font-weight: 500; }
-.value [data-v-text] { opacity: 0.7; }
-
-/* White flash on crossing a gate (opacity driven from JS). */
-.flash {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 50%, #fff 0%, rgba(255, 255, 255, 0.85) 45%, rgba(255, 255, 255, 0.6) 100%);
-  opacity: 0;
-  pointer-events: none;
-  mix-blend-mode: screen;
-}
+.value [data-v-title] { font-weight: 700; text-transform: uppercase; }
+.value [data-v-text] { opacity: 0.75; }
 
 @media (max-width: 900px) {
   .intro { flex-direction: column; gap: 6px; }
-  .value { max-width: 18ch; }
+  .values { grid-template-columns: 1fr 1fr; row-gap: 28px; }
 }

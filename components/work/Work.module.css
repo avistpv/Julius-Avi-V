@@ -1,7 +1,8 @@
 /* Selected work — 12-column staggered grid measured from the reference (1440 wide: 56px margins, ~110px columns). */
 .work {
   position: relative;
-  z-index: 2;
+  z-index: 3; /* covers the pinned jump scene; the torn edge reveals it */
+  background: var(--paper);
   padding: 160px var(--pad) 140px;
   color: var(--ink);
 }

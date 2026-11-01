@@ -8,6 +8,7 @@ import { toRoman } from '@/lib/roman';
 import { prefersReducedMotion } from '@/lib/motion';
 // Hover effect on project images. Alternative kept in the repo: './HoverParticles' (magnet particles).
 import HoverDistort from './HoverDistort';
+import TornEdge from '@/components/TornEdge';
 import styles from './Work.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -83,6 +84,7 @@ export default function Work() {
           [ All {toRoman(TOTAL_PROJECTS)} projects ] <span aria-hidden>↗</span>
         </a>
       </div>
+      <TornEdge />
     </section>
   );
 }

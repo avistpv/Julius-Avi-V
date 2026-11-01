@@ -53,8 +53,29 @@ export default function Legio() {
     return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', resize); };
   }, []);
 
+  // 3D tilt: the portrait leans towards the pointer, the photo inside shifts the other way
+  // (parallax) and a soft glare follows the pointer. Reset smoothly on leave.
+  const tilt = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const r = el.getBoundingClientRect();
+    const nx = ((e.clientX - r.left) / r.width) * 2 - 1;
+    const ny = ((e.clientY - r.top) / r.height) * 2 - 1;
+    el.classList.add(styles.live);
+    el.style.setProperty('--rx', `${(-ny * 9).toFixed(2)}deg`);
+    el.style.setProperty('--ry', `${(nx * 12).toFixed(2)}deg`);
+    el.style.setProperty('--px', `${(-nx * 10).toFixed(1)}px`);
+    el.style.setProperty('--py', `${(-ny * 10).toFixed(1)}px`);
+    el.style.setProperty('--gx', `${(((nx + 1) / 2) * 100).toFixed(1)}%`);
+    el.style.setProperty('--gy', `${(((ny + 1) / 2) * 100).toFixed(1)}%`);
+  };
+  const untilt = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    el.classList.remove(styles.live);
+    ['--rx', '--ry', '--px', '--py'].forEach((v) => el.style.setProperty(v, '0'));
+  };
+
   return (
-    <section ref={root} className={styles.legio} data-legio aria-labelledby="legio-title">
+    <section ref={root} className={styles.legio} data-legio data-cursor="ring" aria-labelledby="legio-title">
       <div ref={stage} className={styles.stage}>
         <div className={styles.stars} aria-hidden />
         <div ref={track} className={styles.track}>
@@ -77,13 +98,15 @@ export default function Legio() {
               ref={(el) => { cards.current[i] = el; }}
               className={styles.card}
               style={{ ['--dev' as string]: 0, marginTop: `${(i % 3) * 5}vh` }}
-              data-cursor="view"
-              data-cursor-label="Hi"
+              data-cursor="ring-big"
+              onPointerMove={tilt}
+              onPointerLeave={untilt}
             >
               <div className={styles.portrait}>
                 <Image src={m.photo} alt={`${m.name}, ${m.role}`} fill sizes="(max-width: 900px) 70vw, 24vw" className={styles.etched} />
                 <Image src={m.photo} alt="" fill sizes="(max-width: 900px) 70vw, 24vw" className={styles.colour} aria-hidden />
                 <span className={`roman ${styles.num}`}>{toRoman(i + 1)}</span>
+                <span className={styles.glare} aria-hidden />
               </div>
               <div className={styles.caption}>
                 <span className={styles.name}>{m.name}</span>

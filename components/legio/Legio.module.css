@@ -71,6 +71,10 @@
   flex: 0 0 auto;
   width: clamp(240px, 23vw, 360px);
   --dev: 0; /* 0 = engraving, 1 = full colour (set per frame by proximity, 1 on hover) */
+  --rx: 0deg; --ry: 0deg; /* tilt */
+  --px: 0px; --py: 0px; /* inner parallax */
+  --gx: 50%; --gy: 50%; /* glare position */
+  perspective: 900px;
 }
 .card:hover { --dev: 1 !important; }
 .portrait {
@@ -79,8 +83,30 @@
   overflow: hidden;
   background: #0d0f1e;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 30px 80px rgba(0, 0, 0, 0.6);
+  transform: rotateX(var(--rx)) rotateY(var(--ry));
+  transform-style: preserve-3d;
+  transition: transform 0.9s cubic-bezier(0.19, 1, 0.22, 1), box-shadow 0.6s ease;
+  will-change: transform;
 }
-.portrait img { object-fit: cover; }
+/* While the pointer is on the card, follow it instantly; the slow ease is only for the way back. */
+.live .portrait { transition: transform 0.12s ease-out, box-shadow 0.6s ease; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 50px 110px rgba(0, 0, 0, 0.7); }
+.portrait img {
+  object-fit: cover;
+  transform: translate(var(--px), var(--py)) scale(1.1);
+  transition: transform 0.9s cubic-bezier(0.19, 1, 0.22, 1);
+}
+.live .portrait img { transition: transform 0.12s ease-out; }
+.glare {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: radial-gradient(60% 60% at var(--gx) var(--gy), rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0) 70%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  mix-blend-mode: screen;
+}
+.live .glare { opacity: 1; }
 /* Engraving: luminosity-only over the dark ground, high contrast, faint hatching. */
 .etched {
   filter: grayscale(1) contrast(1.3) brightness(0.9);
@@ -98,10 +124,9 @@
 }
 .colour {
   opacity: var(--dev);
-  transition: opacity 0.6s ease;
-  transform: scale(calc(1 + 0.03 * var(--dev)));
-  transition: opacity 0.6s ease, transform 1.2s cubic-bezier(0.19, 1, 0.22, 1);
+  transition: opacity 0.6s ease, transform 0.9s cubic-bezier(0.19, 1, 0.22, 1);
 }
+.live .colour { transition: opacity 0.6s ease, transform 0.12s ease-out; }
 .num {
   position: absolute;
   left: 14px;

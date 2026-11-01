@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import styles from './Cursor.module.css';
 
 // Site-wide cursor follower. Elements opt in with data-cursor="<mode>" (+ optional data-cursor-label).
-// Modes so far: "view" (blue disc with a label, used on project cards). More modes come per section.
+// Modes so far: "view" (blue disc with a label, project cards), "ring" / "ring-big" (thin white
+// circle in the team section; bigger over a portrait).
 export default function Cursor() {
   const el = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<string | null>(null);
@@ -57,6 +58,7 @@ export default function Cursor() {
       <div className={`${styles.disc} ${mode === 'view' ? styles.isView : ''}`}>
         <span className={`mono ${styles.label}`}>{label}</span>
       </div>
+      <div className={`${styles.ring} ${mode === 'ring' ? styles.isRing : ''} ${mode === 'ring-big' ? styles.isRingBig : ''}`} />
     </div>
   );
 }

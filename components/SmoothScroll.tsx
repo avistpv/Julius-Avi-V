@@ -48,22 +48,35 @@ export default function SmoothScroll() {
     // nearest resting point. User input interrupts the glide (Lenis stops programmatic scrolls).
     let snapTimer = 0;
     const snap = () => {
-      const j = document.querySelector<HTMLElement>('[data-jump]');
-      if (!j || Math.abs(lenis.velocity) > 0.05) return;
+      if (Math.abs(lenis.velocity) > 0.05) return;
       const vh = window.innerHeight;
-      const top = j.offsetTop;
-      const len = j.offsetHeight - vh;
-      const p = (lenis.scroll - top) / len;
-      if (p < 0.08 || p > 0.97) return; // entering / leaving — leave the user alone
-      let best = SNAPS[0];
-      for (const s of SNAPS) if (Math.abs(s - p) < Math.abs(best - p)) best = s;
-      const target = top + len * best;
-      if (Math.abs(target - lenis.scroll) < 2) return;
-      lenis.scrollTo(target, { duration: 1.1, easing: (t: number) => 1 - Math.pow(1 - t, 3) });
+      const glide = (target: number, duration: number) => {
+        if (Math.abs(target - lenis.scroll) < 2) return;
+        lenis.scrollTo(target, { duration, easing: (t: number) => 1 - Math.pow(1 - t, 3) });
+      };
+      // Jump: nearest resting point.
+      const j = document.querySelector<HTMLElement>('[data-jump]');
+      if (j) {
+        const top = j.offsetTop, len = j.offsetHeight - vh;
+        const p = (lenis.scroll - top) / len;
+        if (p > 0.08 && p < 0.97) {
+          let best = SNAPS[0];
+          for (const s of SNAPS) if (Math.abs(s - p) < Math.abs(best - p)) best = s;
+          return glide(top + len * best, 1.1);
+        }
+      }
+      // Finale: once the light disc starts growing, carry on to the open form by itself
+      // (or back to the numbers when scrolling up) — nobody should have to scroll through it.
+      const f = document.querySelector<HTMLElement>('[data-finale]');
+      if (f) {
+        const top = f.offsetTop, len = f.offsetHeight - vh;
+        const p = (lenis.scroll - top) / len;
+        if (p > 0.24 && p < 0.86) return glide(top + len * (lenis.direction >= 0 ? 0.94 : 0.1), 1.6);
+      }
     };
     const queueSnap = () => {
       window.clearTimeout(snapTimer);
-      snapTimer = window.setTimeout(snap, 150);
+      snapTimer = window.setTimeout(snap, 120);
     };
     lenis.on('scroll', queueSnap);
     // Layout can shift without scrolling (resize, web fonts) — recompute the bust slot then too.

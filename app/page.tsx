@@ -4,6 +4,7 @@ import Hero from '@/components/hero/Hero';
 import Intro from '@/components/intro/Intro';
 import Work from '@/components/work/Work';
 import Jump from '@/components/jump/Jump';
+import Legio from '@/components/legio/Legio';
 
 export default function Home() {
   return (
@@ -14,7 +15,8 @@ export default function Home() {
       <Intro />
       <Work />
       <Jump />
-      {/* Next: III · LEGIO — team (engraved portraits), landing straight out of the jump. */}
+      <Legio />
+      {/* Next: numbers + testimonial, final section. */}
     </main>
   );
 }

@@ -86,7 +86,7 @@ export default function Intro() {
   }, []);
 
   return (
-    <section ref={root} className={styles.intro} aria-label="About Julius">
+    <section ref={root} id="about" className={styles.intro} aria-label="About Julius">
       <figure className={styles.fig}>
         {/* Empty slot: the glass bust is drawn by the hero's 3D scene (the JULIUS word turns into it). */}
         <div className={styles.figMedia} data-bust-anchor />

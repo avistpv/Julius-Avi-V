@@ -1,4 +1,5 @@
 'use client';
+import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 import { store } from '@/lib/store';
 import { scramble } from '@/lib/scramble';
@@ -7,10 +8,15 @@ import {
   range, smooth,
 } from './phases';
 import SceneBoundary from '@/components/hero/SceneBoundary';
-import Painting from './Painting';
 import Props from './Props';
 import Constellation from './Constellation';
 import styles from './Jump.module.css';
+
+// The painting shader and both paintings (~1.6 MB) are fetched only when the section gets close,
+// so they don't compete with the hero for bandwidth on first load.
+const Painting = dynamic(() => import('./Painting'), { ssr: false });
+// ponytail: fixed px lead (~1 screen of scrolling at common heights); switch to a vh-based trigger if layout changes.
+const PRELOAD_MARGIN = '0px 0px 2500px 0px';
 
 const INSCRIPTION = 'VENI · VIDI · VICI';
 
@@ -22,20 +28,36 @@ export default function Jump() {
   const [step, setStep] = useState(-1);
   const [intro, setIntro] = useState(false);
   const [dark, setDark] = useState(false);
+  const [isNear, setIsNear] = useState(false);
+  const root = useRef<HTMLElement>(null);
+  const arch = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stepRef = useRef<HTMLHeadingElement>(null);
   const fontProbe = useRef<HTMLSpanElement>(null);
   const latinRef = useRef<HTMLSpanElement>(null);
   const lineRef = useRef<HTMLSpanElement>(null);
 
+  useEffect(() => {
+    const io = new IntersectionObserver(([en]) => {
+      if (!en.isIntersecting) return;
+      setIsNear(true);
+      io.disconnect();
+    }, { rootMargin: PRELOAD_MARGIN });
+    io.observe(root.current!);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isNear) return;
+    const img = new Image();
+    img.src = '/jump/arch.webp';
+    img.decode().then(() => { arch.current = img; }).catch(() => { img.onload = () => { arch.current = img; }; });
+  }, [isNear]);
+
   // Scroll-linked layers, written straight to the DOM / canvas every frame.
   useEffect(() => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
-    const img = new Image();
-    img.src = '/jump/arch.webp';
-    let imgReady = false;
-    img.decode().then(() => { imgReady = true; }).catch(() => { img.onload = () => { imgReady = true; }; });
 
     let W = 0, H = 0, dpr = 1;
     const resize = () => {
@@ -70,12 +92,13 @@ export default function Jump() {
       // Arch: settles while the paper tears away, then flies past exponentially fast.
       const archScale = (1.1 - 0.1 * reveal) * Math.pow(14, push * push);
       const alpha = 1 - range(push, 0.8, 1);
-      const key = `${archScale.toFixed(4)}|${m.x.toFixed(3)}|${m.y.toFixed(3)}|${alpha.toFixed(3)}|${W}x${H}|${imgReady}`;
+      const img = arch.current;
+      const key = `${archScale.toFixed(4)}|${m.x.toFixed(3)}|${m.y.toFixed(3)}|${alpha.toFixed(3)}|${W}x${H}|${!!img}`;
       if (key !== lastKey) {
         lastKey = key;
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, W, H);
-        if (imgReady && alpha > 0 && push < 1) {
+        if (img && alpha > 0 && push < 1) {
           // The arch box behaves like `cover` (its opening keeps fixed coordinates).
           const bw = Math.max(W, H * ARCH_ASPECT);
           const bh = bw / ARCH_ASPECT;
@@ -129,10 +152,10 @@ export default function Jump() {
   }, [step]);
 
   return (
-    <section className={`${styles.jump} ${dark ? styles.dark : ''}`} data-jump aria-label="How we work">
+    <section ref={root} className={`${styles.jump} ${dark ? styles.dark : ''}`} data-jump aria-label="How we work">
       <div className={styles.stage}>
         <SceneBoundary fallback={<div className={styles.land} aria-hidden />}>
-          <Painting />
+          {isNear && <Painting />}
         </SceneBoundary>
         <canvas ref={canvasRef} className={styles.arch} aria-hidden />
         <Props />

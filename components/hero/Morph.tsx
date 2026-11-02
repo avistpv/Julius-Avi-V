@@ -4,7 +4,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { MeshTransmissionMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import { useCaesarGeometry } from '@/components/three/useCaesar';
-import { store, sky, morphShared } from '@/lib/store';
+import { store, sky } from '@/lib/store';
 
 // Dust -> Caesar.
 // In the hero a round cloud of blue dust floats under the slogan: it breathes, swirls slowly and
@@ -16,6 +16,7 @@ import { store, sky, morphShared } from '@/lib/store';
 const COUNT = 14000;
 export const SWEEP_START = 0.8; // particles have landed; the scan line starts rising
 export const SWEEP_END = 1.0; // ...and has passed the top of the head
+const WARM_FRAME = 3; // frame on which the hidden glass shader is precompiled
 
 const vert = /* glsl */ `
   uniform mat4 uMatA;
@@ -133,29 +134,6 @@ function sampleBust(geo: THREE.BufferGeometry): Float32Array {
   return out;
 }
 
-// Where the laurel sits on the head: a ring a little below the top of the bust.
-function findHead(geo: THREE.BufferGeometry) {
-  const pos = geo.getAttribute('position') as THREE.BufferAttribute;
-  let maxY = -Infinity;
-  for (let i = 0; i < pos.count; i++) maxY = Math.max(maxY, pos.getY(i));
-  const lo = maxY - 0.19, hi = maxY - 0.09; // forehead height, where a laurel actually sits
-  const c = new THREE.Vector3();
-  let n = 0;
-  for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i);
-    if (y > lo && y < hi) { c.x += pos.getX(i); c.y += y; c.z += pos.getZ(i); n++; }
-  }
-  if (!n) return;
-  c.divideScalar(n);
-  let r = 0;
-  for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i);
-    if (y > lo && y < hi) r += Math.hypot(pos.getX(i) - c.x, pos.getZ(i) - c.z);
-  }
-  morphShared.headCenter.copy(c);
-  morphShared.headRadius = r / n;
-}
-
 export default function Morph() {
   const geo = useCaesarGeometry();
   const bust = useRef<THREE.Mesh>(null);
@@ -178,7 +156,6 @@ export default function Morph() {
 
   const points = useMemo(() => {
     if (!geo) return null;
-    findHead(geo);
     const g = new THREE.BufferGeometry();
     g.setAttribute('aA', new THREE.BufferAttribute(sampleCloud(), 3));
     g.setAttribute('aB', new THREE.BufferAttribute(sampleBust(geo), 3));
@@ -220,6 +197,7 @@ export default function Morph() {
   const mouseW = useMemo(() => new THREE.Vector2(1e4, 1e4), []);
   const mouseT = useMemo(() => new THREE.Vector2(), []);
   const appear = useRef(0);
+  const warmFrames = useRef(0);
 
   useFrame((state, dt) => {
     const b = bust.current;
@@ -245,14 +223,17 @@ export default function Morph() {
     b.rotation.y = THREE.MathUtils.damp(b.rotation.y, store.mouse.x * 0.7 + Math.sin(time * 0.35) * 0.18, 2.5, dt);
     b.rotation.x = THREE.MathUtils.damp(b.rotation.x, -store.mouse.y * 0.15, 2.5, dt);
     b.updateMatrixWorld();
-    morphShared.bustMatrix.copy(b.matrixWorld);
-    morphShared.bustReady = true;
 
     // Scan line: from just under the pedestal to just over the head.
     const k = THREE.MathUtils.smoothstep(m, SWEEP_START, SWEEP_END);
     const sweepY = m >= SWEEP_END ? 1e4 : THREE.MathUtils.lerp(cy - s * 0.53, cy + s * 0.53, k);
     clip.constant = sweepY;
     b.visible = m > SWEEP_START;
+    // Compile the glass a few frames in (the environment map exists by then) while the bust is still
+    // hidden; otherwise the first frame of the scan line stalls for 200-450 ms.
+    if (warmFrames.current < WARM_FRAME && ++warmFrames.current === WARM_FRAME) {
+      state.gl.compileAsync(b, state.camera, state.scene).catch(() => {});
+    }
 
     // Pointer in world units, eased so the dust parts smoothly.
     mouseT.set(store.mouse.x * vw * 0.5, store.mouse.y * vh * 0.5);

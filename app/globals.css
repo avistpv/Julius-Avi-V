@@ -1,3 +1,35 @@
+/* Metric-matched stand-in for TikTok Sans while the web font loads (no layout shift on swap).
+   Next has no built-in metrics for TikTok Sans, so these were measured in Chrome against the real
+   font, one face per used weight: text widths match within ±1%. Overrides = 1em ascent, 0.3em
+   descent, divided by size-adjust. Re-measure if the font or the weights change. */
+@font-face {
+  font-family: 'TikTok Sans Fallback';
+  src: local('Arial'), local('ArialMT');
+  font-weight: 400;
+  size-adjust: 106.5%;
+  ascent-override: 93.9%;
+  descent-override: 28.17%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'TikTok Sans Fallback';
+  src: local('Arial'), local('ArialMT');
+  font-weight: 500;
+  size-adjust: 108.7%;
+  ascent-override: 92%;
+  descent-override: 27.6%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'TikTok Sans Fallback';
+  src: local('Arial Bold'), local('Arial-BoldMT');
+  font-weight: 700;
+  size-adjust: 103.7%;
+  ascent-override: 96.43%;
+  descent-override: 28.93%;
+  line-gap-override: 0%;
+}
+
 :root {
   --sky: #c3dcf0;
   --paper: #f3f2ee;

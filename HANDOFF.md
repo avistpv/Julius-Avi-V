@@ -11,6 +11,9 @@ This file = current state + what's next. Repo: https://github.com/vfreed0mz01-cy
   SwiftShader WebGL; screenshots land in `.shots/` (git-ignored). Selector `-` + absolute px also works. Glass looks flat
   under SwiftShader; it is fine on a real GPU.
 - Type-check: `NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit`.
+- E2E smoke test: `npm run build && npx next start -p 3001`, then `node tools/e2e.mjs http://localhost:3001` (18 checks:
+  preloader, nav anchors, lazy paintings, scroll-through, form, routes, zero console errors). `CHROME=...` overrides the
+  browser path (default: Windows or macOS Chrome).
 - Talk to the user in Russian; they want quality, step by step, discuss before big changes, and they review every section
   from screenshots + the live page in Chrome. Push to GitHub after each approved step.
 

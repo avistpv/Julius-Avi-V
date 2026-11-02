@@ -4,6 +4,8 @@
   height: 260vh; /* pinned stage: numbers, then the disc grows (auto-scrolled), then the form */
   background: var(--paper); /* once unpinned, the page stays light */
 }
+.contactAnchor { position: absolute; bottom: 100vh; }
+
 .stage {
   position: sticky;
   top: 0;

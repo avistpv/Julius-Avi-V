@@ -6,7 +6,9 @@
 import puppeteer from 'puppeteer-core';
 const [url, out, sel, list, w = '1200', h = '750'] = process.argv.slice(2);
 const browser = await puppeteer.launch({
-  executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  executablePath: process.env.CHROME ?? (process.platform === 'win32'
+    ? 'C:/Program Files/Google/Chrome/Application/chrome.exe'
+    : '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
   headless: 'new',
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-webgl', '--force-prefers-no-reduced-motion'],
 });

@@ -1,16 +1,19 @@
 'use client';
 import { useLayoutEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { PROJECTS, ROWS, TOTAL_PROJECTS, type Project } from '@/lib/projects';
 import { toRoman } from '@/lib/roman';
 import { prefersReducedMotion } from '@/lib/motion';
-// Hover effect on project images. Alternative kept in the repo: './HoverParticles' (magnet particles).
-import HoverDistort from './HoverDistort';
 import TornEdge from '@/components/TornEdge';
 import Tether from './Tether';
 import styles from './Work.module.css';
+
+// Hover effect on project images. Alternative kept in the repo: './HoverParticles' (magnet particles).
+// Loaded on the client after hydration so three.js stays out of the first-load bundle.
+const HoverDistort = dynamic(() => import('./HoverDistort'), { ssr: false });
 
 gsap.registerPlugin(ScrollTrigger);
 

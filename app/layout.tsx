@@ -2,7 +2,14 @@ import type { Metadata, Viewport } from 'next';
 import { TikTok_Sans, Geist_Mono, Cinzel } from 'next/font/google';
 import './globals.css';
 
-const sans = TikTok_Sans({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-sans' });
+// Next has no fallback metrics for TikTok Sans: the matched stand-in lives in globals.css.
+const sans = TikTok_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-sans',
+  adjustFontFallback: false,
+  fallback: ['TikTok Sans Fallback'],
+});
 // Roman inscription capitals (Trajan-like) — used only for small accents.
 const roman = Cinzel({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-roman' });
 const mono = Geist_Mono({ subsets: ['latin'], weight: ['400'], variable: '--font-mono' });

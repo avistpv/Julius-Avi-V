@@ -83,6 +83,8 @@ export default function Finale() {
 
   return (
     <section ref={root} className={styles.finale} data-finale aria-label="Numbers and contact">
+      {/* Nav target: sits one screen above the section end, so #contact lands on the open form. */}
+      <span id="contact" className={styles.contactAnchor} aria-hidden />
       <div className={styles.stage}>
         {/* ---------- dark: numbers + testimonial ---------- */}
         <div ref={dark} className={styles.dark} data-cursor="ring">

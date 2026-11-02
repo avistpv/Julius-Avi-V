@@ -1,4 +1,5 @@
-import * as THREE from 'three';
+// Type-only import: this module is used by every section, so a runtime `three` import here
+// would put all of three.js into the first-load bundle.
 import type { Texture } from 'three';
 
 // Shared mutable state read inside the render loop (no React re-renders).
@@ -19,11 +20,3 @@ export const store = {
 
 // Low-res background texture shared by the paper backdrop and the glass (which refracts it).
 export const sky: { texture: Texture | null } = { texture: null };
-
-// Filled by the 3D components each frame so they can hand off to one another.
-export const morphShared = {
-  bustMatrix: new THREE.Matrix4(), // world matrix of the Caesar bust
-  headCenter: new THREE.Vector3(0, 0.38, 0), // in bust-local units (bust is 1 unit tall)
-  headRadius: 0.12,
-  bustReady: false,
-};

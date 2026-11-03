@@ -5,6 +5,7 @@ import { MeshTransmissionMaterial } from '@react-three/drei';
 import * as THREE from 'three';
 import { useCaesarGeometry } from '@/components/three/useCaesar';
 import { store, sky } from '@/lib/store';
+import { isSoftwareGL } from '@/lib/gpu';
 
 // Dust -> Caesar.
 // In the hero a round cloud of blue dust floats under the slogan: it breathes, swirls slowly and
@@ -230,8 +231,9 @@ export default function Morph() {
     clip.constant = sweepY;
     b.visible = m > SWEEP_START;
     // Compile the glass a few frames in (the environment map exists by then) while the bust is still
-    // hidden; otherwise the first frame of the scan line stalls for 200-450 ms.
-    if (warmFrames.current < WARM_FRAME && ++warmFrames.current === WARM_FRAME) {
+    // hidden; otherwise the first frame of the scan line stalls for 200-450 ms. Not on software WebGL:
+    // there the compile runs on the CPU and would block the page for ~1.5 s during load.
+    if (!isSoftwareGL() && warmFrames.current < WARM_FRAME && ++warmFrames.current === WARM_FRAME) {
       state.gl.compileAsync(b, state.camera, state.scene).catch(() => {});
     }
 

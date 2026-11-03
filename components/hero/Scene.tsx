@@ -5,34 +5,45 @@ import { Environment, Lightformer, PerformanceMonitor } from '@react-three/drei'
 import Sky from './Sky';
 import Morph from './Morph';
 import { store } from '@/lib/store';
+import { isSoftwareGL } from '@/lib/gpu';
+
+// Without a GPU (see lib/gpu.ts) the same scene draws at half resolution, every other display frame.
+const SOFT_DPR = 0.5;
+const SOFT_FRAME_STEP = 2;
 
 // Stop rendering entirely once the hero + intro (where the bust lives) have scrolled off screen.
-function FrameGate() {
+// On software WebGL the scene runs on demand and is invalidated at ~30 fps while visible.
+function FrameGate({ isSoft }: { isSoft: boolean }) {
   const set = useThree((s) => s.set);
+  const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
     let raf = 0;
     let running = true;
+    let frame = 0;
     const loop = () => {
       const visible = store.sceneActive;
-      if (visible !== running) {
+      if (!isSoft && visible !== running) {
         running = visible;
         set({ frameloop: visible ? 'always' : 'never' });
       }
+      if (isSoft && visible && frame++ % SOFT_FRAME_STEP === 0) invalidate();
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [set]);
+  }, [set, invalidate, isSoft]);
   return null;
 }
 
 export default function Scene() {
   // Start at up to 1.5x pixel density; drop to 1x if the GPU struggles.
   const [dpr, setDpr] = useState(1.5);
+  const [isSoft] = useState(isSoftwareGL);
   return (
     <Canvas
       className="scene-canvas"
-      dpr={[1, dpr]}
+      dpr={isSoft ? SOFT_DPR : [1, dpr]}
+      frameloop={isSoft ? 'demand' : 'always'}
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       camera={{ position: [0, 0, 10], fov: 32, near: 0.1, far: 50 }}
       onCreated={({ gl }) => {
@@ -59,7 +70,7 @@ export default function Scene() {
         <Morph />
       </Suspense>
       <PerformanceMonitor onDecline={() => setDpr(1)} />
-      <FrameGate />
+      <FrameGate isSoft={isSoft} />
     </Canvas>
   );
 }

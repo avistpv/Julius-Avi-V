@@ -33,6 +33,21 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.
 page.on('requestfailed', (r) => errors.push(`requestfailed: ${r.url()} ${r.failure()?.errorText}`));
 page.on('response', (r) => { if (r.status() >= 400) errors.push(`http ${r.status()}: ${r.url()}`); });
 
+// Click only once the element is what the pointer would actually hit and has stopped moving (not
+// covered by the fading preloader, not mid reveal-slide) — the actionability wait Playwright does.
+const clickWhenHittable = async (sel) => {
+  await page.waitForFunction((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const pos = `${r.x},${r.y}`;
+    const isStill = el.dataset.e2ePos === pos;
+    el.dataset.e2ePos = pos;
+    return isStill && el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+  }, { timeout: 8000, polling: 100 }, sel);
+  await page.click(sel);
+};
+
 // Scroll so that section `sel` is at progress p (0 = its top at the viewport top, 1 = its end).
 const scrollSection = (sel, p) => page.evaluate((sel, p) => {
   const s = document.querySelector(sel);
@@ -65,7 +80,7 @@ await check('WebGL canvas mounted', async () => {
 
 await check('clock toggles Roman numerals', async () => {
   const before = await page.$eval('button[title="Roman numerals"]', (b) => b.textContent);
-  await page.click('button[title="Roman numerals"]');
+  await clickWhenHittable('button[title="Roman numerals"]');
   const after = await page.$eval('button[title="Arabic numerals"]', (b) => b.textContent);
   assert(before !== after, 'text unchanged');
 });
@@ -77,7 +92,7 @@ await check('nav anchors point to existing sections', async () => {
 });
 
 await check('nav [Contact] lands on the open form', async () => {
-  await page.click('nav a[href="#contact"]');
+  await clickWhenHittable('nav a[href="#contact"]');
   await wait(1500);
   const p = await page.evaluate(() => {
     const f = document.querySelector('[data-finale]');

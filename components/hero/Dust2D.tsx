@@ -2,13 +2,19 @@
 import { useEffect, useRef } from 'react';
 import { store } from '@/lib/store';
 
-// The hero's dust without WebGL (phones, or `?hero=2d`): a few thousand points on a plain canvas.
-// Same choreography as Morph.tsx — a breathing ball under the slogan that parts around the pointer,
-// flying onto Caesar's surface as you scroll into the intro — but the bust stays made of dust
-// (no glass), drawn from the prepared surface points and slowly turning after the pointer.
+// The hero's dust without WebGL (phones, or `?hero=2d`): a few thousand crisp points on a plain
+// canvas. Same choreography as Morph.tsx — a breathing ball under the slogan that parts around the
+// pointer, flying onto Caesar's surface as you scroll into the intro — and then the same glass
+// bust, pre-rendered (public/bust, tools/bust-frames.mjs): a scan line climbs the figure, the
+// picture appears below it, the dust flares and goes out above it. Nine yaw frames let the bust
+// turn a little after the pointer (or idle on its own).
 const COUNT = 2600;
 const POINTS_URL = '/models/caesar-points.bin';
 const POINTS_SCALE = 1 / 20000;
+const FRAMES = 9;
+const YAW_MAX = 0.6; // frames span -YAW_MAX..YAW_MAX
+const FRAME_W = 664, FRAME_H = 800; // rendered at 2x the 332×400 slot
+const SWEEP_START = 0.8, SWEEP_END = 1.0;
 
 const smooth = (t: number) => t * t * (3 - 2 * t);
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -21,7 +27,7 @@ export default function Dust2D() {
     const ctx = canvas.getContext('2d')!;
     let W = 0, H = 0, dpr = 1;
     const resize = () => {
-      dpr = Math.min(1.5, window.devicePixelRatio || 1);
+      dpr = Math.min(2, window.devicePixelRatio || 1);
       W = window.innerWidth; H = window.innerHeight;
       canvas.width = Math.round(W * dpr);
       canvas.height = Math.round(H * dpr);
@@ -41,7 +47,7 @@ export default function Dust2D() {
       cloud[i * 3 + 2] = r * Math.cos(ph) * 0.75;
       for (let k = 0; k < 4; k++) rnd[i * 4 + k] = Math.random();
     }
-    // Bust: every Nth prepared surface point (bust-local units, one unit tall, centred).
+    // Bust surface: every Nth prepared point (bust-local units, one unit tall, centred).
     let bust: Float32Array | null = null;
     fetch(POINTS_URL).then((r) => r.arrayBuffer()).then((buf) => {
       const q = new Int16Array(buf);
@@ -55,6 +61,18 @@ export default function Dust2D() {
       }
       bust = out;
     }).catch(() => {});
+    // Bust frames: fetched once the dust starts to fly, so the hero never pays for them.
+    const frames: (HTMLImageElement | null)[] = Array(FRAMES).fill(null);
+    let framesRequested = false;
+    const loadFrames = () => {
+      framesRequested = true;
+      for (let i = 0; i < FRAMES; i++) {
+        const img = new Image();
+        img.decoding = 'async';
+        img.onload = () => { frames[i] = img; };
+        img.src = `/bust/f${i}.webp`;
+      }
+    };
 
     let appear = 0;
     let raf = 0;
@@ -75,21 +93,51 @@ export default function Dust2D() {
       m.y += (store.mouse.y - m.y) * 0.08;
 
       const morph = store.morph;
+      if (morph > 0.05 && !framesRequested) loadFrames();
       // Cloud: under the slogan, scrolling with the page. Bust: over the intro's figure slot.
       const R = H * 0.21 * smooth(appear);
       const cx = W / 2, cy = H * 0.5 + H * 0.17 - store.scroll;
       const a = store.anchor;
-      const bx = a.x + a.w / 2, by = a.y + a.h / 2, bs = a.h * 0.94;
+      const bs = a.h * 0.94;
+      const bx = a.x + a.w / 2, by = a.y + a.h / 2 + Math.sin(time * 0.8) * bs * 0.012;
       const px = (store.mouse.x + 1) / 2 * W, py = (1 - store.mouse.y) / 2 * H;
       // Only a real pointer parts the dust (on touch the last position would punch a hole in it).
       const repel = store.pointerFine ? 1 - smooth(clamp01(morph / 0.25)) : 0;
-      yaw += ((m.x * 0.6 + Math.sin(time * 0.35) * 0.15) - yaw) * 0.04;
+      const yawTarget = (store.pointerFine ? m.x * 0.5 : 0) + Math.sin(time * 0.35) * 0.14;
+      yaw += (yawTarget - yaw) * 0.04;
       const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
 
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, W, H);
+      // Scan line (viewport px): climbs from under the pedestal to over the head.
+      const k = smooth(clamp01((morph - SWEEP_START) / (SWEEP_END - SWEEP_START)));
+      const sweeping = morph > SWEEP_START;
+      const sweepY = morph >= SWEEP_END ? -1e4 : by + bs * 0.53 - k * bs * 1.06;
+      const band = bs * 0.035;
+
+      // Work in device pixels so every point lands on whole pixels (no smear).
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       const alpha = smooth(clamp01(appear / 0.6));
       if (alpha <= 0) return;
+
+      // The picture, below the scan line.
+      if (sweeping) {
+        const fi = Math.round(((Math.max(-YAW_MAX, Math.min(YAW_MAX, yaw)) + YAW_MAX) / (2 * YAW_MAX)) * (FRAMES - 1));
+        const img = frames[fi] ?? frames.find(Boolean) ?? null;
+        if (img) {
+          const h = bs / 0.9; // in the frame the bust spans 90% of the height
+          const w = h * (FRAME_W / FRAME_H);
+          const x = bx - w / 2, y = by - h / 2;
+          const top = Math.max(y, sweepY);
+          if (top < y + h) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(x * dpr, top * dpr, w * dpr, (y + h - top) * dpr);
+            ctx.clip();
+            ctx.drawImage(img, x * dpr, y * dpr, w * dpr, h * dpr);
+            ctx.restore();
+          }
+        }
+      }
 
       for (let i = 0; i < COUNT; i++) {
         const r0 = rnd[i * 4], r1 = rnd[i * 4 + 1], r2 = rnd[i * 4 + 2], r3 = rnd[i * 4 + 3];
@@ -118,7 +166,7 @@ export default function Dust2D() {
           const rx = lx * cosY + lz * sinY;
           depth = -lx * sinY + lz * cosY; // towards the viewer = positive
           x1 = bx + rx * bs;
-          y1 = by - ly * bs + Math.sin(time * 0.8) * bs * 0.012;
+          y1 = by - ly * bs;
         }
 
         let x = x0 + (x1 - x0) * e + (r1 * 2 - 1) * arc * R * 0.45;
@@ -126,15 +174,23 @@ export default function Dust2D() {
         x += Math.sin(time * 1.3 + r0 * 40) * 2 * arc;
         y += Math.cos(time * 1.1 + r1 * 40) * 2 * arc;
 
+        // Below the scan line the glass has taken over; right at it the dust flares.
+        let glow = 0;
+        if (sweeping) {
+          const dy = y - sweepY;
+          if (dy > band) continue;
+          glow = Math.exp(-Math.abs(dy) / band);
+        }
+
         // Blue dust; lighter in flight; on the bust, points facing us are brighter (cheap shading).
-        const lift = 0.15 + arc * 0.5;
+        const lift = Math.min(1, 0.15 + arc * 0.5 + glow * 0.7);
         const shade = e > 0 ? 0.55 + 0.45 * clamp01(depth * 2 + 0.5) : 1;
-        const red = Math.round((74 + (200 - 74) * lift) * shade);
-        const grn = Math.round((120 + (220 - 120) * lift) * shade);
+        const red = Math.round((74 + (255 - 74) * lift) * shade);
+        const grn = Math.round((120 + (255 - 120) * lift) * shade);
         const blu = Math.round((230 + (255 - 230) * lift) * shade);
-        const size = (1.1 + r3 * 1.2) * (1 + arc * 0.8) * (e > 0.99 ? 1.15 : 1);
-        ctx.fillStyle = `rgba(${red},${grn},${blu},${(alpha * (0.75 + 0.25 * r3)).toFixed(2)})`;
-        ctx.fillRect(x - size / 2, y - size / 2, size, size);
+        const size = Math.max(1, Math.round((1.1 + r3 * 1.2) * (1 + arc * 0.8 + glow * 0.8) * dpr));
+        ctx.fillStyle = `rgba(${red},${grn},${blu},${(alpha * (0.78 + 0.22 * r3)).toFixed(2)})`;
+        ctx.fillRect(Math.round(x * dpr), Math.round(y * dpr), size, size);
       }
     };
     raf = requestAnimationFrame(loop);

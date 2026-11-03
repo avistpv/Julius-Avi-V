@@ -11,12 +11,18 @@ export const CAESAR_URL = '/models/caesar.glb';
 export function useCaesarGeometry() {
   const gltf = useLoader(GLTFLoader, CAESAR_URL);
   return useMemo(() => {
-    let g: THREE.BufferGeometry | null = null;
+    let mesh: THREE.Mesh | null = null;
+    gltf.scene.updateMatrixWorld(true);
     gltf.scene.traverse((o) => {
-      if (!g && (o as THREE.Mesh).isMesh) g = (o as THREE.Mesh).geometry;
+      if (!mesh && (o as THREE.Mesh).isMesh) mesh = o as THREE.Mesh;
     });
-    if (g && !(g as THREE.BufferGeometry).getAttribute('normal')) (g as THREE.BufferGeometry).computeVertexNormals();
-    return g as THREE.BufferGeometry | null;
+    if (!mesh) return null;
+    // Quantized positions come with a compensating node transform: bake it, so the geometry
+    // itself is the one-unit-tall bust the scenes expect.
+    const g = (mesh as THREE.Mesh).geometry.clone();
+    g.applyMatrix4((mesh as THREE.Mesh).matrixWorld);
+    if (!g.getAttribute('normal')) g.computeVertexNormals();
+    return g;
   }, [gltf]);
 }
 

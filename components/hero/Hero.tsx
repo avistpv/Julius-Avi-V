@@ -7,6 +7,18 @@ import SceneBoundary from './SceneBoundary';
 import styles from './Hero.module.css';
 
 const Scene = dynamic(() => import('./Scene'), { ssr: false });
+const Dust2D = dynamic(() => import('./Dust2D'), { ssr: false });
+
+// Phones get the dust on a plain canvas (no three.js: ~1.5 s less main-thread work on a 4x-slow
+// CPU). `?hero=2d` / `?hero=3d` force either variant for comparison.
+function useLiteHero() {
+  const [lite, setLite] = useState<boolean | null>(null);
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get('hero');
+    setLite(q === '2d' ? true : q === '3d' ? false : window.innerWidth < 900);
+  }, []);
+  return lite;
+}
 
 const HEADLINE = ['We build products', 'that ship.'];
 
@@ -30,6 +42,7 @@ function goTo(hash: string) {
 export default function Hero() {
   const [ready, setReady] = useState(false);
   const [mountScene, setMountScene] = useState(false);
+  const lite = useLiteHero();
 
   // The text does not wait for WebGL: it is in the first paint and settles in with a short rise.
   // The dust fades in on its own when the 3D layer has its first frame (store.ready).
@@ -71,7 +84,7 @@ export default function Hero() {
     <>
       <div ref={canvasRef} className={styles.canvasWrap}>
         <SceneBoundary>
-          {mountScene && <Scene />}
+          {mountScene && lite !== null && (lite ? <Dust2D /> : <Scene />)}
         </SceneBoundary>
       </div>
 

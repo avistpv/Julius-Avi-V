@@ -1,67 +1,97 @@
-# Handoff — Julius site prototype (updated 2026-11-01, late)
+# Handoff — Julius site prototype (updated 2026-11-03)
 
-Read **CONCEPT.md** first (product/design decisions; note the hero section there is outdated — see below).
-This file = current state + what's next. Repo: https://github.com/vfreed0mz01-cyber/Julius-Avi-V (branch `main`, push after each step).
+Read **CONCEPT.md** first (product/design decisions; its hero section is outdated — see below).
+This file = current state + what's next.
+
+**Repo:** https://github.com/avistpv/Julius-Avi-V — branch `main`. Push after each approved step (`git push`;
+auth here is the `vfreed0mz01-cyber` GitHub account via `gh`). avistpv (repo owner) also commits — always
+`git fetch` + `git rebase origin/main` before pushing. **Vercel builds only owner-authored commits**: after our
+pushes avistpv must push an empty commit or hit Redeploy; our pushes alone do not deploy.
+The older repo `vfreed0mz01-cyber/Julius-Avi-V` and any `feat/landing-prototype` branches are stale copies.
+
+## Current goal: Lighthouse Performance 95+ (mobile and desktop)
+Vercel before this round: 71 mobile / 80 desktop. Local prod-build Lighthouse now: desktop ~90, mobile ~70 with the
+WebGL hero, 88–94 with the 2D hero (phones get the 2D hero automatically, see below). Local numbers are noisy
+when the user's own Chrome tab with the site is open (it eats CPU) — prefer PageSpeed Insights on the Vercel URL.
+
+## OPEN BUG — fix first
+**2D hero: the pre-rendered bust is jerky** ("бюст дёрганный"). User saw it on `http://localhost:3000/?hero=2d`.
+`components/hero/Dust2D.tsx` draws the bust from 9 pre-rendered yaw frames (`public/bust/f0..f8.webp`) and picks
+`frames[round(yaw -> 0..8)]` every rAF while `yaw` eases after the pointer / idles on a sine — so it snaps between
+frames (9 steps across ±0.6 rad) and, while frames are still loading, falls back to `frames.find(Boolean)` (any
+loaded frame -> visible jumps between different angles). Likely fixes, in order of preference:
+1. Stop turning the picture: use one frame (f4, yaw 0) only; keep the gentle float (`by` already bobs) — simplest, matches the
+   "картинками" brief.
+2. Or cross-fade between the two neighbouring frames by the fractional yaw instead of snapping, and never draw
+   until all 9 frames are loaded (draw dust only until then).
+3. Also check the scan-line reveal: the clip `rect` is computed per frame from `sweepY`; the dust above the line
+   is culled with `continue` — fine, but make sure `store.anchor` is stable (it is measured by SmoothScroll on
+   layout changes only).
+The 3D hero (desktop) is unaffected.
 
 ## Run / check
-- `npm run dev` → http://localhost:3000 (Next 15, React 19, R3F 9, drei 10, three 0.187, GSAP + ScrollTrigger, Lenis).
-- In dev the OS "reduce motion" setting is ignored (motion always on); in production `?motion=1` forces it on (`lib/motion.ts`).
-- **Visual checks:** the app's built-in browser pane has WebGL blocked. Use
-  `node tools/shot.mjs "http://localhost:3000/" .shots/name "[data-jump]" "0.1,0.3" [w] [h]` — headless system Chrome with
-  SwiftShader WebGL; screenshots land in `.shots/` (git-ignored). Selector `-` + absolute px also works. Glass looks flat
-  under SwiftShader; it is fine on a real GPU.
-- Type-check: `NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit`.
-- E2E smoke test: `npm run build && npx next start -p 3001`, then `node tools/e2e.mjs http://localhost:3001` (18 checks:
-  preloader, nav anchors, lazy paintings, scroll-through, form, routes, zero console errors). `CHROME=...` overrides the
-  browser path (default: Windows or macOS Chrome).
-- Talk to the user in Russian; they want quality, step by step, discuss before big changes, and they review every section
-  from screenshots + the live page in Chrome. Push to GitHub after each approved step.
+- `npm run dev` → http://localhost:3000. `?hero=2d` forces the 2D hero on desktop, `?hero=3d` forces WebGL on phones.
+- **Do not run `next build` while the dev server is running on the same `.next`** — it corrupts the dev server
+  (500 "Cannot find module ./897.js"). Stop dev first, or build into another dir. After a build: `rm -rf .next`,
+  restart dev.
+- Prod + measure: `npx next build && npx next start -p 3001`, then Lighthouse
+  (`npx lighthouse@12 http://localhost:3001/ --only-categories=performance --form-factor=mobile
+  --screenEmulation.mobile --throttling-method=simulate` or `--preset=desktop`), and the smoke test
+  `node tools/e2e.mjs http://localhost:3001` (18 checks; must stay 18/18).
+- Type-check: `NODE_OPTIONS=--max-old-space-size=4096 npx tsc --noEmit` (ignore TS6053 about `.next/types` if `.next`
+  was just deleted).
+- Screenshots: `node tools/shot.mjs "http://localhost:3000/" .shots/name "[data-jump]" "0.1,0.3" [w] [h]` (headless
+  Chrome; `.shots/` is git-ignored). Headless Chrome here can use the real GPU (Intel Iris Xe) — glass renders properly.
+- In dev the OS "reduce motion" setting is ignored; in production `?motion=1` forces motion on (`lib/motion.ts`).
+- Talk to the user in Russian; short steps, screenshots + live page, discuss before big changes.
 
 ## Page order (app/page.tsx)
-1. **Hero** (`components/hero/*`) — paper backdrop (`Sky.tsx` is now a "living paper" shader; its low-res texture also
-   feeds the glass refraction), JULIUS only in the header, centred slogan "We build products / that ship.", and under it a
-   round cloud of 14k blue particles that breathes and parts around the mouse (`Morph.tsx`). Dark ring cursor. Clock →
-   Roman numerals on click. Preloader "Veni · Vidi · Vici". No wreath, no grid, no coords any more (the old hero was a
-   near copy of haoqi.design and was rebuilt twice; the user approved this minimal version).
-2. **Intro** (`components/intro/*`) — on scroll the cloud flies into the figure slot `[data-bust-anchor]` and gathers into
-   the glass Caesar bust (`public/models/caesar.glb`), scan line reveals the glass. `store.morph` is computed in
-   `SmoothScroll.tsx` from the slot position.
-3. **II · Opera Selecta** (`components/work/*`) — 12-col staggered grid, Unsplash placeholders, hover = blocky WebGL
-   distortion (`HoverDistort.tsx`), cursor "VIEW". The "All XVII projects" link has a magnetic anchor (`Tether.tsx`): thread
-   + dust from the link to the pointer, link leans. Section ends with a torn-paper edge (`components/TornEdge.tsx`).
-4. **III · Virtvtes** (`components/jump/*`) — pinned 600vh, starts one screen early under the work grid. Scroll map in
-   `phases.ts`, progress `store.jump`. Beats: paper tears → painted triumphal arch (canvas-drawn, `public/jump/arch.webp`,
-   inscription VENI · VIDI · VICI) → camera pushes through the opening into a Roman landscape (`Painting.tsx`, full-screen
-   shader: dolly + parallax) → VENI (painting; props: brief, voice note, chat) → VIDI (props: Figma cursor/frame/panel/
-   swatches; then the painting pixelates into a mosaic and dissolves block by block into a glowing Sobel-edge etching on a
-   night sky) → VICI (flight on into the stars; props: terminal, version tag, launch toast) → values as a **constellation**
-   drawn star to star (`Constellation.tsx`). Floating props live in `Props.tsx`. Both paintings were generated in
-   Higgsfield (gpt_image_2_5, ~5.5 credits total).
-   **Scroll snapping:** `SNAPS` in `phases.ts`; `SmoothScroll.tsx` glides to the nearest resting point ~120ms after the
-   scroll stops (user asked for it so no half-states are ever shown).
-5. **III · Legio — team** (`components/legio/*`) — pinned horizontal track out of the same night. 11 cards
-   (`lib/team.ts`; photos are Unsplash placeholders, credits in `public/team/CREDITS.md`): engraving look that develops into
-   colour near the centre and on hover; 3D tilt + inner parallax + glare on hover; white ring cursor.
-6. **IV · Numeri → V · Colloquium** (`components/finale/*`) — one pinned stage: dark numbers (count up) + Nevo Adisol
-   quote, then a light disc grows out of the lime dot (base1 reveal) into the light call form "Got an idea? Let's ship it."
-   Once the disc starts growing the page auto-scrolls to the open form (and back to the numbers when scrolling up).
-   The form only shows a "sent" state — nothing is submitted anywhere yet.
+1. **Hero** (`components/hero/*`) — paper backdrop, JULIUS only in the header, centred slogan, under it a cloud of
+   blue dust that breathes and parts around the mouse. Desktop (≥900px): WebGL (`Scene.tsx` + `Morph.tsx`, 14k
+   particles, glass bust via `MeshTransmissionMaterial`, lit by a tiny procedural equirect `StudioEnv.tsx`).
+   Phones (<900px) or `?hero=2d`: `Dust2D.tsx` — 2.6k crisp points on a 2D canvas, then the pre-rendered glass bust
+   (see bug above). The 3D layer mounts on `requestIdleCallback`; the text is in the first paint (no preloader).
+   Dark ring cursor. Clock → Roman numerals on click.
+2. **Intro** (`components/intro/*`) — on scroll the dust flies into the figure slot `[data-bust-anchor]` and gathers
+   into Caesar; a scan line reveals the bust. `store.morph` from `SmoothScroll.tsx`. Word fill on plain rAF (no GSAP).
+3. **II · Opera Selecta** (`components/work/*`) — 12-col grid, Unsplash placeholders, hover = WebGL block distortion
+   (`HoverDistort.tsx`, lazy), cursor VIEW, magnetic anchor on "All XVII projects" (`Tether.tsx`), torn-paper edge
+   (`components/TornEdge.tsx`). GSAP + ScrollTrigger load only when the grid is near.
+4. **III · Virtvtes** (`components/jump/*`) — pinned 600vh under the work grid: torn paper → painted arch (canvas) →
+   push through into the landscape (`Painting.tsx` shader) → VENI / VIDI (mosaic → glowing etching) / VICI (stars) →
+   values as a constellation (`Constellation.tsx`). Props per word in `Props.tsx`. Scroll map + `SNAPS` in
+   `phases.ts`; SmoothScroll glides to the nearest resting point ~120ms after the scroll stops.
+5. **III · Legio — team** (`components/legio/*`) — pinned horizontal track, 11 cards (`lib/team.ts`, Unsplash
+   placeholders, `public/team/CREDITS.md`), engraving → colour near centre / on hover, 3D tilt, white ring cursor.
+6. **IV · Numeri → V · Colloquium** (`components/finale/*`) — numbers + Nevo Adisol quote, light disc grows from the
+   lime dot into the call form; auto-scrolls through the reveal. Form submits nowhere yet.
+Sections 4–6 are **lazy** (`components/LazySections.tsx`): placeholders of the same height until ~1.5 screens
+away; a nav click dispatches `mount-sections` to mount them all before scrolling (`goTo` in Hero.tsx).
 
-## Cursor modes (`components/Cursor.tsx`)
-`data-cursor="view"` (blue dot + label), `ring-dark` (hero), `ring` / `ring-big` (team), `default` (light form).
-The cursor re-reads what is under the pointer after scrolling.
+## Performance work done (perf round 1 + 2D hero)
+- First-load JS 370 → 126 kB; three.js, GSAP, Lenis-free SmoothScroll; sections lazy; no preloader veil.
+- One geometry measurement per scroll in `SmoothScroll.tsx` (`store.legio/finale/dot/tether/anchor`); no
+  `getBoundingClientRect` inside rAF loops; sections dispatch `window 'layout'` when they resize.
+- Caesar prepared offline: `tools/bust.mjs` (source `tools/assets/caesar-src.glb` → `public/models/caesar.glb`,
+  19k tris, quantized; `public/models/caesar-points.bin` 14k int16 surface points). `useCaesar.ts` bakes the
+  quantized node transform (×0.5) — without it the bust is 2× too big.
+- Bust frames: `node tools/bust-frames.mjs` renders `public/bust/f0..f8.webp` from `/lab/bust` (dev server must be
+  running) on the GPU; re-run if glass/light changes.
+- Fonts self-hosted (`app/fonts`, `next/font/local`; the Google loader broke the build). Images WebP (AVIF timed
+  out the local optimiser). `experimental.inlineCss`.
+- avistpv's `lib/gpu.ts`: on software WebGL (PageSpeed, VMs) the 3D hero runs at 0.5 dpr, no MSAA, ~20 fps.
 
 ## Next steps
-1. **Form destination** — where do requests go (email / Telegram / CRM)? Ask the user, then wire it.
-2. **Real contacts** in the Colloquium left column (email/phone — not invented yet) and a footer.
-3. Real team photos (swap `public/team/p*.jpg` or paths in `lib/team.ts`); real project images in `public/work/`.
-4. Mobile pass (postponed by the user), performance pass (three WebGL canvases: hero/intro scene, HoverDistort, Painting).
-5. Pages "Work" and "About" (links exist, routes don't).
+1. Fix the jerky 2D bust (above), re-check on a phone viewport (390px) and `?hero=2d`.
+2. Measure on Vercel (PageSpeed Insights) after avistpv redeploys; then round 2 if needed: image sizes/srcset for
+   work + team, `caesar.glb`/points fetched later (after first paint), `unused-javascript` (~120 kB of three in the
+   hero chunk — only matters for desktop), LCP render delay (slogan is LCP; currently ~1.7 s render delay on
+   mobile sim — check what blocks it).
+3. Form destination (email / Telegram / CRM?), real contacts, footer, real photos. Mobile layout pass.
 
 ## Gotchas
-- Raw `ShaderMaterial`s output untransformed colour; don't set `colorSpace` on textures used by them.
-- Chrome breaks a hugely scaled DOM layer into raster tiles — that's why the arch is drawn on a canvas.
-- The jump section is `margin-top: -100vh` under the work grid (z-index 3, paper background) so the tear reveals a scene
-  that is already pinned.
-- Higgsfield credits are low (~164) — only generate with the user's OK.
-- The git identity used for pushes is the `vfreed0mz01-cyber` GitHub account (`gh auth switch` if needed).
+- Raw `ShaderMaterial`s output untransformed colour; don't set `colorSpace` on textures they sample.
+- The arch is drawn on a canvas because a hugely scaled DOM layer breaks into raster tiles.
+- Jump section is `margin-top: -100vh` under the work grid (z-index 3) so the tear reveals an already pinned scene.
+- Higgsfield credits are low (~164) — generate only with the user's OK.
+- `.shots/`, `.next/`, `tsconfig.tsbuildinfo` are git-ignored; `tools/assets/caesar-src.glb` is the model source.

@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import Image from 'next/image';
+import { store } from '@/lib/store';
 import { TEAM } from '@/lib/team';
 import { toRoman } from '@/lib/roman';
 import styles from './Legio.module.css';
@@ -17,10 +18,13 @@ export default function Legio() {
   useEffect(() => {
     const sec = root.current!, tr = track.current!, st = stage.current!;
     let dist = 0; // how far the track has to travel
+    let centres: number[] = []; // each card's centre inside the track, px
     const resize = () => {
       dist = Math.max(0, tr.scrollWidth - window.innerWidth);
       // Scroll length = the sideways distance, plus one screen so the last panel can settle.
       sec.style.height = `${dist + window.innerHeight}px`;
+      centres = cards.current.map((c) => (c ? c.offsetLeft + c.offsetWidth / 2 : -1e4));
+      window.dispatchEvent(new Event('layout')); // SmoothScroll re-measures the section
     };
     resize();
     window.addEventListener('resize', resize);
@@ -30,21 +34,19 @@ export default function Legio() {
     let last = -1;
     const loop = () => {
       raf = requestAnimationFrame(loop);
-      const r = sec.getBoundingClientRect();
-      const vh = window.innerHeight;
-      if (r.bottom < 0 || r.top > vh) return;
-      const p = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - vh)));
+      if (!store.legioOn) return;
+      const p = store.legio;
       if (p === last) return;
       last = p;
       const x = -p * dist;
       tr.style.transform = `translate3d(${x.toFixed(1)}px, 0, 0)`;
       st.style.setProperty('--sx', `${(x * 0.15).toFixed(1)}px`); // stars drift slower
       // Each portrait develops as it nears the centre of the screen.
-      const mid = window.innerWidth / 2;
-      cards.current.forEach((c) => {
+      const vw = window.innerWidth;
+      const mid = vw / 2;
+      cards.current.forEach((c, i) => {
         if (!c) return;
-        const cr = c.getBoundingClientRect();
-        const d = Math.abs(cr.left + cr.width / 2 - mid) / window.innerWidth;
+        const d = Math.abs(centres[i] + x - mid) / vw;
         const dev = Math.max(0, 1 - d / 0.22);
         c.style.setProperty('--dev', (dev * 0.75).toFixed(3));
       });

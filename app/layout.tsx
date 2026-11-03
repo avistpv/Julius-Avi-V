@@ -1,18 +1,20 @@
 import type { Metadata, Viewport } from 'next';
-import { TikTok_Sans, Geist_Mono, Cinzel } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 
-// Next has no fallback metrics for TikTok Sans: the matched stand-in lives in globals.css.
-const sans = TikTok_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '700'],
+// Self-hosted latin subsets (variable files from Google Fonts, see app/fonts): no network at build
+// time, one request per family, preloaded. The matched TikTok Sans stand-in lives in globals.css.
+const sans = localFont({
+  src: './fonts/tiktok-sans.woff2',
+  weight: '300 900',
   variable: '--font-sans',
+  display: 'swap',
   adjustFontFallback: false,
   fallback: ['TikTok Sans Fallback'],
 });
 // Roman inscription capitals (Trajan-like) — used only for small accents.
-const roman = Cinzel({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-roman' });
-const mono = Geist_Mono({ subsets: ['latin'], weight: ['400'], variable: '--font-mono' });
+const roman = localFont({ src: './fonts/cinzel.woff2', weight: '400 900', variable: '--font-roman', display: 'swap' });
+const mono = localFont({ src: './fonts/geist-mono.woff2', weight: '400', variable: '--font-mono', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'JULIUS © 2026 — Products that ship',

@@ -37,6 +37,9 @@ export default function Jump() {
   const latinRef = useRef<HTMLSpanElement>(null);
   const lineRef = useRef<HTMLSpanElement>(null);
 
+  // Mounted lazily: the page geometry changed, SmoothScroll must re-measure.
+  useEffect(() => { window.dispatchEvent(new Event('layout')); }, []);
+
   useEffect(() => {
     const io = new IntersectionObserver(([en]) => {
       if (!en.isIntersecting) return;
@@ -60,7 +63,9 @@ export default function Jump() {
     const ctx = canvas.getContext('2d')!;
 
     let W = 0, H = 0, dpr = 1;
+    let fam = 'serif';
     const resize = () => {
+      if (fontProbe.current) fam = getComputedStyle(fontProbe.current).fontFamily;
       dpr = Math.min(1.5, window.devicePixelRatio || 1);
       W = canvas.clientWidth; H = canvas.clientHeight;
       canvas.width = Math.round(W * dpr);
@@ -113,7 +118,6 @@ export default function Jump() {
           ctx.translate(-ox, -oy);
           ctx.drawImage(img, bx, by, bw, bh);
           // Carved into the blank tablet on the attic.
-          const fam = fontProbe.current ? getComputedStyle(fontProbe.current).fontFamily : 'serif';
           const size = bw * 0.031;
           ctx.font = `600 ${size}px ${fam}`;
           ctx.textAlign = 'center';

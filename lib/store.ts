@@ -16,6 +16,18 @@ export const store = {
   sceneActive: true, // false once the intro has scrolled away -> stop rendering the 3D layer
   velocity: 0, // Lenis scroll velocity (px per frame), drives the warp speed
   jump: 0, // 0..1 progress through the hyperjump section
+
+  // Pinned sections, measured once per scroll in SmoothScroll (no layout reads inside rAF loops).
+  legio: 0, // 0..1 through the team track
+  legioOn: false, // section intersects the viewport
+  finale: 0, // 0..1 through numbers -> form
+  finaleOn: false,
+  dot: { x: 0, y: 0 }, // the lime dot the light disc grows from, viewport px
+  tether: { left: 0, top: 0, w: 0, h: 0 }, // the All-projects link, viewport px
+  pointerFine: false, // mouse present (set on first pointermove)
+  // Called on every Lenis scroll (ScrollTrigger.update once GSAP is loaded, etc.).
+  scrollFns: new Set<() => void>(),
+  scrollTo: null as null | ((y: number, immediate?: boolean) => void),
 };
 
 // Low-res background texture shared by the paper backdrop and the glass (which refracts it).

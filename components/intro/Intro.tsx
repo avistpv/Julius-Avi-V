@@ -1,11 +1,9 @@
 'use client';
-import { Fragment, useLayoutEffect, useRef } from 'react';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { Fragment, useEffect, useRef } from 'react';
 import { prefersReducedMotion } from '@/lib/motion';
+import { store } from '@/lib/store';
 import styles from './Intro.module.css';
 
-gsap.registerPlugin(ScrollTrigger);
 
 // Text pieces: plain strings are words; objects are underlined project links.
 type Piece = string | { text: string; href: string };
@@ -61,28 +59,59 @@ function Words({ pieces }: { pieces: Piece[] }) {
 export default function Intro() {
   const root = useRef<HTMLElement>(null);
 
-  useLayoutEffect(() => {
+  // Each paragraph "reads itself": words go from faint to their final tone as the paragraph crosses
+  // the screen (top 85% -> bottom 45%), staggered word by word. Plain rAF: geometry is measured
+  // on layout changes, the per-frame work is a few multiplications per word.
+  useEffect(() => {
     if (prefersReducedMotion()) return;
-    const ctx = gsap.context(() => {
-      // Each paragraph "reads itself": words go from faint to their final tone, tied to scroll.
-      const fill = (sel: string, end: number) => {
-        const words = gsap.utils.toArray<HTMLElement>(`${sel} [data-word]`);
-        gsap.fromTo(
-          words,
-          { opacity: 0.14 },
-          {
-            opacity: (_i: number, el: HTMLElement) => (el.hasAttribute('data-strong') ? 1 : end),
-            ease: 'none',
-            stagger: 0.05,
-            scrollTrigger: { trigger: sel, start: 'top 85%', end: 'bottom 45%', scrub: 0.6 },
-          }
-        );
-      };
-      fill('[data-intro-lead]', 1);
-      fill('[data-intro-more]', 0.55);
+    const paras = [
+      { el: root.current!.querySelector<HTMLElement>('[data-intro-lead]')!, end: 1 },
+      { el: root.current!.querySelector<HTMLElement>('[data-intro-more]')!, end: 0.55 },
+    ].map((p) => {
+      const words = Array.from(p.el.querySelectorAll<HTMLElement>('[data-word]'));
+      const strong = words.map((w) => w.hasAttribute('data-strong'));
+      // GSAP-like stagger: 0.05 per word, each fade lasting 0.5 of the timeline's time unit.
+      const total = 0.5 + 0.05 * (words.length - 1);
+      return { ...p, words, strong, total, top: 0, h: 0 };
+    });
+    const measure = () => {
+      for (const p of paras) {
+        const r = p.el.getBoundingClientRect();
+        p.top = r.top + store.scroll;
+        p.h = r.height;
+      }
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('layout', measure);
+    document.fonts?.ready.then(measure);
 
-    }, root);
-    return () => ctx.revert();
+    let raf = 0;
+    let lastScroll = -1;
+    const loop = () => {
+      raf = requestAnimationFrame(loop);
+      const y = store.scroll;
+      if (y === lastScroll) return;
+      lastScroll = y;
+      const vh = window.innerHeight;
+      for (const p of paras) {
+        const startY = p.top - vh * 0.85;
+        const endY = p.top + p.h - vh * 0.45;
+        const t = Math.min(1, Math.max(0, (y - startY) / Math.max(1, endY - startY)));
+        p.words.forEach((w, i) => {
+          const a = (0.05 * i) / p.total, b = (0.05 * i + 0.5) / p.total;
+          const k = Math.min(1, Math.max(0, (t - a) / (b - a)));
+          const end = p.strong[i] ? 1 : p.end;
+          w.style.opacity = (0.14 + (end - 0.14) * k).toFixed(3);
+        });
+      }
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('layout', measure);
+    };
   }, []);
 
   return (

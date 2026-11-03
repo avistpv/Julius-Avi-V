@@ -7,5 +7,7 @@ const nextConfig = {
   outputFileTracingRoot: import.meta.dirname,
   // ~9 kB of CSS goes straight into the HTML instead of two render-blocking requests.
   experimental: { inlineCss: true },
+  // Long cache for optimised images (WebP; AVIF encoding timed out the local optimiser).
+  images: { formats: ['image/webp'], minimumCacheTTL: 2592000 },
 };
 export default nextConfig;

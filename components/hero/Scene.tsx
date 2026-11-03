@@ -1,7 +1,7 @@
 'use client';
 import { Suspense, useEffect, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { Environment, Lightformer, PerformanceMonitor } from '@react-three/drei';
+import StudioEnv from './StudioEnv';
 import Sky from './Sky';
 import Morph from './Morph';
 import { store } from '@/lib/store';
@@ -37,9 +37,9 @@ function FrameGate({ isSoft }: { isSoft: boolean }) {
 }
 
 export default function Scene() {
-  // Start at up to 1.5x pixel density; drop to 1x if the GPU struggles.
-  const [dpr, setDpr] = useState(1.5);
+  // 1.5x pixel density on desktops, 1x on phones, half on software WebGL.
   const [isSoft] = useState(isSoftwareGL);
+  const dpr = typeof window !== 'undefined' && window.innerWidth < 900 ? 1 : 1.5;
   return (
     <Canvas
       className="scene-canvas"
@@ -55,22 +55,14 @@ export default function Scene() {
     >
       <Sky />
 
-      {/* Studio lighting baked into an environment map: soft boxes give the glossy, balloon-like highlights. */}
-      <Environment resolution={256} frames={1}>
-        <color attach="background" args={['#efece6']} />
-        <Lightformer form="rect" intensity={4} position={[0, 5, 2]} scale={[10, 2, 1]} rotation-x={Math.PI / 2} />
-        <Lightformer form="rect" intensity={2.5} position={[-5, 1, 3]} scale={[3, 6, 1]} rotation-y={Math.PI / 2} />
-        <Lightformer form="rect" intensity={2} position={[5, 0, 3]} scale={[3, 6, 1]} rotation-y={-Math.PI / 2} />
-        <Lightformer form="ring" color="#fff1d6" intensity={3} position={[2, 3, 4]} scale={2} />
-        <Lightformer form="rect" color="#9fbcf0" intensity={1} position={[0, -4, 1]} scale={[10, 2, 1]} rotation-x={-Math.PI / 2} />
-      </Environment>
+      {/* Studio lighting from a tiny procedural equirect (see StudioEnv). */}
+      <StudioEnv />
       <ambientLight intensity={0.4} />
       <directionalLight position={[-3, 5, 6]} intensity={1.2} />
 
       <Suspense fallback={null}>
         <Morph />
       </Suspense>
-      <PerformanceMonitor onDecline={() => setDpr(1)} />
       <FrameGate isSoft={isSoft} />
     </Canvas>
   );

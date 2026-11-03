@@ -39,13 +39,13 @@ export default function Tether({ selector }: { selector: string }) {
 
     const loop = () => {
       raf = requestAnimationFrame(loop);
-      const r = el.getBoundingClientRect();
+      const r = store.tether; // measured by SmoothScroll, no layout read here
       const px = store.pointer.x, py = store.pointer.y;
-      const inView = r.bottom > 0 && r.top < H && r.width > 0;
+      const inView = store.pointerFine && r.w > 0 && r.top + r.h > 0 && r.top < H;
       // Anchor: the point on the link's box nearest the pointer, pulled a bit inside.
-      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-      const ax = Math.min(Math.max(px, r.left + 6), r.right - 6);
-      const ay = Math.min(Math.max(py, r.top + 4), r.bottom - 4);
+      const cx = r.left + r.w / 2, cy = r.top + r.h / 2;
+      const ax = Math.min(Math.max(px, r.left + 6), r.left + r.w - 6);
+      const ay = Math.min(Math.max(py, r.top + 4), r.top + r.h - 4);
       const dx = px - ax, dy = py - ay;
       const dist = Math.hypot(dx, dy);
       const target = inView ? Math.max(0, 1 - dist / REACH) : 0;

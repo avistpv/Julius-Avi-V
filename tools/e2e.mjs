@@ -93,7 +93,7 @@ await check('nav anchors point to existing sections', async () => {
 
 await check('nav [Contact] lands on the open form', async () => {
   await clickWhenHittable('nav a[href="#contact"]');
-  await wait(1500);
+  await wait(3000); // the sections mount first, then the page scrolls and re-aims once
   const p = await page.evaluate(() => {
     const f = document.querySelector('[data-finale]');
     return (scrollY - f.offsetTop) / (f.offsetHeight - innerHeight);
@@ -104,6 +104,11 @@ await check('nav [Contact] lands on the open form', async () => {
 });
 
 await check('all sections render', async () => {
+  // Sections below the fold mount on approach: walk the page once so they exist.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await wait(1200);
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await wait(600);
   const empty = await page.evaluate(() =>
     ['[data-bust-anchor]', '#work', '[data-jump]', '[data-legio]', '[data-finale]']
       .filter((s) => !(document.querySelector(s)?.offsetHeight > 0)));
@@ -121,8 +126,14 @@ await check('full scroll-through without errors', async () => {
 });
 
 await check('work + team images loaded', async () => {
-  const broken = await page.$$eval('#work img, [data-legio] img', (imgs) =>
-    imgs.filter((i) => !(i.complete && i.naturalWidth > 0)).map((i) => i.currentSrc || i.src));
+  // The local optimiser encodes on first request: give the lazily mounted team up to 10 s.
+  let broken = [];
+  for (let i = 0; i < 20; i++) {
+    broken = await page.$$eval('#work img, [data-legio] img', (imgs) =>
+      imgs.filter((img) => !(img.complete && img.naturalWidth > 0)).map((img) => img.currentSrc || img.src));
+    if (broken.length === 0) break;
+    await wait(500);
+  }
   assert(broken.length === 0, `broken: ${broken.slice(0, 3).join(', ')}`);
 });
 

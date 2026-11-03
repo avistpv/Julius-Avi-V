@@ -26,20 +26,19 @@ export default function Constellation() {
     let raf = 0;
     const m = { x: 0, y: 0 };
     const stops: (() => void)[] = [];
-    let sized = '';
+    // Lines live in pixel space (a stretched viewBox would break the dash animation).
+    const size = () => {
+      if (!svg.current || !line.current) return;
+      const W = window.innerWidth, H = window.innerHeight;
+      svg.current.setAttribute('viewBox', `0 0 ${W} ${H}`);
+      line.current.setAttribute('points', STARS.map((s) => `${(s.x / 100) * W},${(s.y / 100) * H}`).join(' '));
+    };
+    size();
+    window.addEventListener('resize', size);
     const loop = () => {
       raf = requestAnimationFrame(loop);
       const p = store.jump;
-      // Lines live in pixel space (a stretched viewBox would break the dash animation).
-      if (svg.current && line.current && layer.current) {
-        const W = layer.current.clientWidth, H = layer.current.clientHeight;
-        const key = `${W}x${H}`;
-        if (key !== sized) {
-          sized = key;
-          svg.current.setAttribute('viewBox', `0 0 ${W} ${H}`);
-          line.current.setAttribute('points', STARS.map((s) => `${(s.x / 100) * W},${(s.y / 100) * H}`).join(' '));
-        }
-      }
+      if (p < VALUES_FROM - 0.05) return;
       m.x += (store.mouse.x - m.x) * 0.05;
       m.y += (store.mouse.y - m.y) * 0.05;
       const t = range(p, VALUES_FROM, VALUES_FROM + 0.1); // 0..1 across the values beat (done well before the resting point)
@@ -66,7 +65,7 @@ export default function Constellation() {
       });
     };
     raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); stops.forEach((f) => f()); };
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', size); stops.forEach((f) => f()); };
   }, []);
 
   return (

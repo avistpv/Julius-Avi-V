@@ -26,25 +26,24 @@ export default function Finale() {
   const [counted, setCounted] = useState(false);
   const [sent, setSent] = useState(false);
 
+  useEffect(() => { window.dispatchEvent(new Event('layout')); }, []);
+
   useEffect(() => {
-    const sec = root.current!;
     let raf = 0;
     let last = -1;
     let countedLocal = false;
     const loop = () => {
       raf = requestAnimationFrame(loop);
-      const r = sec.getBoundingClientRect();
+      if (!store.finaleOn) return;
       const vh = window.innerHeight, vw = window.innerWidth;
-      if (r.bottom < 0 || r.top > vh) return;
-      const p = clamp01(-r.top / Math.max(1, r.height - vh));
+      const p = store.finale;
       if (p === last) return;
       last = p;
       if (!countedLocal && p > 0.02) { countedLocal = true; setCounted(true); }
 
       // The disc grows out of the dot until it covers the farthest corner.
-      const d = dot.current?.getBoundingClientRect();
-      const cx = d ? d.left + d.width / 2 : vw / 2;
-      const cy = d ? d.top + d.height / 2 : vh / 2;
+      const cx = store.dot.x || vw / 2;
+      const cy = store.dot.y || vh / 2;
       const maxR = Math.hypot(Math.max(cx, vw - cx), Math.max(cy, vh - cy)) + 20;
       const grow = smooth(range(p, 0.3, 0.72));
       const rad = grow * maxR;
@@ -92,7 +91,7 @@ export default function Finale() {
           <div className={styles.darkInner}>
             <span className={`roman ${styles.kicker}`}>IV · Numeri</span>
             <h2 className={styles.darkTitle}>
-              <span ref={dot} className={styles.dot} aria-hidden />
+              <span ref={dot} className={styles.dot} data-finale-dot aria-hidden />
               Five years in.
             </h2>
             <div className={styles.numbers}>

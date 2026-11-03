@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
-import { MeshTransmissionMaterial } from '@react-three/drei';
+import { MeshTransmissionMaterial } from '@react-three/drei/core/MeshTransmissionMaterial';
 import * as THREE from 'three';
 import { useCaesarGeometry } from '@/components/three/useCaesar';
 import { store, sky } from '@/lib/store';
@@ -14,7 +14,8 @@ import { isSoftwareGL } from '@/lib/gpu';
 // the glass bust is already there, above it the particles still hold the shape and flare out as
 // the line passes. Pure function of scroll (store.morph), so it reverses cleanly.
 
-const COUNT = 14000;
+const COUNT_FULL = 14000;
+const COUNT_LITE = 7000;
 export const SWEEP_START = 0.8; // particles have landed; the scan line starts rising
 export const SWEEP_END = 1.0; // ...and has passed the top of the head
 const WARM_FRAME = 3; // frame on which the hidden glass shader is precompiled
@@ -87,10 +88,10 @@ const frag = /* glsl */ `
 
 // Where the dust lives in the hero: a soft ball of radius 1 (scaled per frame), denser inside,
 // with a thin haze around it.
-function sampleCloud(): Float32Array {
-  const out = new Float32Array(COUNT * 3);
+function sampleCloud(count: number): Float32Array {
+  const out = new Float32Array(count * 3);
   const p = new THREE.Vector3();
-  for (let i = 0; i < COUNT; i++) {
+  for (let i = 0; i < count; i++) {
     const halo = Math.random() < 0.12;
     const r = halo ? 1 + Math.pow(Math.random(), 2) * 0.6 : Math.cbrt(Math.random()) * 0.98;
     p.randomDirection().multiplyScalar(r);
@@ -99,41 +100,11 @@ function sampleCloud(): Float32Array {
   return out;
 }
 
-function sampleBust(geo: THREE.BufferGeometry): Float32Array {
-  // Area-weighted random points on the bust's triangles.
-  const pos = geo.getAttribute('position') as THREE.BufferAttribute;
-  const idx = geo.getIndex();
-  const triCount = idx ? idx.count / 3 : pos.count / 3;
-  const vi = (t: number, k: number) => (idx ? idx.getX(t * 3 + k) : t * 3 + k);
-  const A = new THREE.Vector3(), B = new THREE.Vector3(), C = new THREE.Vector3();
-  const areas = new Float32Array(triCount);
-  let total = 0;
-  for (let t = 0; t < triCount; t++) {
-    A.fromBufferAttribute(pos, vi(t, 0));
-    B.fromBufferAttribute(pos, vi(t, 1));
-    C.fromBufferAttribute(pos, vi(t, 2));
-    total += new THREE.Triangle(A, B, C).getArea();
-    areas[t] = total;
-  }
-  const out = new Float32Array(COUNT * 3);
-  for (let i = 0; i < COUNT; i++) {
-    const r = Math.random() * total;
-    let lo = 0, hi = triCount - 1;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (areas[mid] < r) lo = mid + 1;
-      else hi = mid;
-    }
-    A.fromBufferAttribute(pos, vi(lo, 0));
-    B.fromBufferAttribute(pos, vi(lo, 1));
-    C.fromBufferAttribute(pos, vi(lo, 2));
-    let u = Math.random(), v = Math.random();
-    if (u + v > 1) { u = 1 - u; v = 1 - v; }
-    const p = A.clone().multiplyScalar(1 - u - v).addScaledVector(B, u).addScaledVector(C, v);
-    out.set([p.x, p.y, p.z], i * 3);
-  }
-  return out;
-}
+// Surface points prepared offline (tools/bust.mjs): int16, metres * 20000.
+const POINTS_URL = '/models/caesar-points.bin';
+const POINTS_SCALE = 1 / 20000;
+// Phones and small laptops get fewer particles.
+const lite = () => typeof window !== 'undefined' && (window.innerWidth < 900 || (navigator.hardwareConcurrency ?? 8) <= 4);
 
 export default function Morph() {
   const geo = useCaesarGeometry();
@@ -155,15 +126,32 @@ export default function Morph() {
     return () => clearInterval(id);
   }, [buffer]);
 
+  const [samples, setSamples] = useState<Float32Array | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(POINTS_URL)
+      .then((r) => r.arrayBuffer())
+      .then((buf) => {
+        const q = new Int16Array(buf);
+        const n = (lite() ? COUNT_LITE : COUNT_FULL) * 3;
+        const f = new Float32Array(Math.min(n, q.length));
+        for (let i = 0; i < f.length; i++) f[i] = q[i] * POINTS_SCALE;
+        if (alive) setSamples(f);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const points = useMemo(() => {
-    if (!geo) return null;
+    if (!samples) return null;
+    const count = samples.length / 3;
     const g = new THREE.BufferGeometry();
-    g.setAttribute('aA', new THREE.BufferAttribute(sampleCloud(), 3));
-    g.setAttribute('aB', new THREE.BufferAttribute(sampleBust(geo), 3));
-    const rnd = new Float32Array(COUNT * 4);
+    g.setAttribute('aA', new THREE.BufferAttribute(sampleCloud(count), 3));
+    g.setAttribute('aB', new THREE.BufferAttribute(samples, 3));
+    const rnd = new Float32Array(count * 4);
     for (let i = 0; i < rnd.length; i++) rnd[i] = Math.random();
     g.setAttribute('aRand', new THREE.BufferAttribute(rnd, 4));
-    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(COUNT * 3), 3));
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
     const mat = new THREE.ShaderMaterial({
       vertexShader: vert,
       fragmentShader: frag,
@@ -187,7 +175,7 @@ export default function Morph() {
     const pts = new THREE.Points(g, mat);
     pts.frustumCulled = false;
     return pts;
-  }, [geo]);
+  }, [samples]);
 
   useEffect(() => () => {
     points?.geometry.dispose();

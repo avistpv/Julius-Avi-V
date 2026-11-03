@@ -10,28 +10,44 @@ const Scene = dynamic(() => import('./Scene'), { ssr: false });
 
 const HEADLINE = ['We build products', 'that ship.'];
 
+// Sections below the fold mount on approach, so a hash jump first mounts them all, lets the
+// layout settle, then scrolls once; a late re-aim catches any height that changed on the way.
+function goTo(hash: string) {
+  window.dispatchEvent(new Event('mount-sections'));
+  const aim = (immediate: boolean) => {
+    const el = document.querySelector(hash);
+    if (!el || !store.scrollTo) return;
+    store.scrollTo(el.getBoundingClientRect().top + store.scroll, immediate);
+  };
+  setTimeout(() => aim(false), 120);
+  setTimeout(() => aim(true), 1500);
+  history.replaceState(null, '', hash);
+}
+
 // I · ORIGO. Paper, the slogan in the middle, and under it a cloud of blue dust that breathes,
 // shies away from the mouse, and gathers into Caesar's bust as you scroll into the intro
 // (the dust and the bust are drawn by the 3D layer behind this section).
 export default function Hero() {
   const [ready, setReady] = useState(false);
+  const [mountScene, setMountScene] = useState(false);
 
-  // Preloader: wait for the first WebGL frame (and a minimum beat so the bar reads), then reveal.
+  // The text does not wait for WebGL: it is in the first paint and settles in with a short rise.
+  // The dust fades in on its own when the 3D layer has its first frame (store.ready).
   useEffect(() => {
-    const start = performance.now();
-    const done = () => {
-      const wait = Math.max(0, 900 - (performance.now() - start));
-      setTimeout(() => {
-        setReady(true);
-        store.ready = true;
-      }, wait);
-    };
-    window.addEventListener('scene-ready', done, { once: true });
-    // Safety net: never keep people on the loader if WebGL is slow or unavailable.
-    const fallback = setTimeout(done, 4000);
+    const t = requestAnimationFrame(() => setReady(true));
+    const onScene = () => { store.ready = true; };
+    window.addEventListener('scene-ready', onScene, { once: true });
+    // Safety net so the dust never stays hidden if WebGL is slow or unavailable.
+    const fallback = setTimeout(onScene, 4000);
+    // Start the 3D layer (three.js + model) once the browser is idle, so it never competes with
+    // the first paint.
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number };
+    const idle = (cb: () => void) => (w.requestIdleCallback ? w.requestIdleCallback(cb, { timeout: 1200 }) : window.setTimeout(cb, 200));
+    if (process.env.NEXT_PUBLIC_NO3D !== '1') idle(() => setMountScene(true));
     return () => {
-      window.removeEventListener('scene-ready', done);
+      cancelAnimationFrame(t);
       clearTimeout(fallback);
+      window.removeEventListener('scene-ready', onScene);
     };
   }, []);
 
@@ -55,10 +71,9 @@ export default function Hero() {
     <>
       <div ref={canvasRef} className={styles.canvasWrap}>
         <SceneBoundary>
-          <Scene />
+          {mountScene && <Scene />}
         </SceneBoundary>
       </div>
-      <Preloader done={ready} />
 
       <section className={`${styles.hero} ${ready ? styles.isReady : ''}`} data-cursor="ring-dark" aria-label="Intro">
         <header className={styles.header}>
@@ -68,7 +83,12 @@ export default function Hero() {
           </a>
           <nav className={`${styles.nav} mono`}>
             {['Work', 'About', 'Contact'].map((l, i) => (
-              <a key={l} href={`#${l.toLowerCase()}`} className={styles.navLink}>
+              <a
+                key={l}
+                href={`#${l.toLowerCase()}`}
+                className={styles.navLink}
+                onClick={(e) => { e.preventDefault(); goTo(`#${l.toLowerCase()}`); }}
+              >
                 <Reveal i={i + 1}>
                   <span className={styles.bracket}>[</span>
                   {l}
@@ -109,15 +129,6 @@ function Reveal({ children, i = 0, className = '' }: { children: React.ReactNode
         {children}
       </span>
     </span>
-  );
-}
-
-function Preloader({ done }: { done: boolean }) {
-  return (
-    <div className={`${styles.preloader} ${done ? styles.preloaderDone : ''}`} aria-hidden>
-      <span className={styles.preloaderBar} />
-      <span className={`roman ${styles.preloaderMotto}`}>Veni · Vidi · Vici</span>
-    </div>
   );
 }
 

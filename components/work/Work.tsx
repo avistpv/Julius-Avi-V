@@ -1,9 +1,8 @@
 'use client';
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { store } from '@/lib/store';
 import { PROJECTS, ROWS, TOTAL_PROJECTS, type Project } from '@/lib/projects';
 import { toRoman } from '@/lib/roman';
 import { prefersReducedMotion } from '@/lib/motion';
@@ -15,14 +14,26 @@ import styles from './Work.module.css';
 // Loaded on the client after hydration so three.js stays out of the first-load bundle.
 const HoverDistort = dynamic(() => import('./HoverDistort'), { ssr: false });
 
-gsap.registerPlugin(ScrollTrigger);
-
 export default function Work() {
   const root = useRef<HTMLElement>(null);
 
-  useLayoutEffect(() => {
+  // GSAP (+ScrollTrigger, ~50 kB) is fetched only when the grid gets near, so the first screen
+  // never pays for it.
+  useEffect(() => {
     if (prefersReducedMotion()) return;
-    const ctx = gsap.context(() => {
+    const el = root.current!;
+    let ctx: { revert: () => void } | null = null;
+    let update: (() => void) | null = null;
+    let cancelled = false;
+    const io = new IntersectionObserver(async ([en]) => {
+      if (!en.isIntersecting) return;
+      io.disconnect();
+      const [{ default: gsap }, { ScrollTrigger }] = await Promise.all([import('gsap'), import('gsap/ScrollTrigger')]);
+      if (cancelled) return;
+      gsap.registerPlugin(ScrollTrigger);
+      update = () => ScrollTrigger.update();
+      store.scrollFns.add(update);
+      ctx = gsap.context(() => {
       // Header: lines slide up out of their masks.
       gsap.from('[data-w-line]', {
         yPercent: 105,
@@ -52,8 +63,15 @@ export default function Work() {
           { yPercent: 7, ease: 'none', scrollTrigger: { trigger: card, start: 'top bottom', end: 'bottom top', scrub: true } }
         );
       });
-    }, root);
-    return () => ctx.revert();
+      }, el);
+    }, { rootMargin: '1200px 0px' });
+    io.observe(el);
+    return () => {
+      cancelled = true;
+      io.disconnect();
+      if (update) store.scrollFns.delete(update);
+      ctx?.revert();
+    };
   }, []);
 
   return (

@@ -7,12 +7,13 @@ import Morph from './Morph';
 import { store } from '@/lib/store';
 import { isSoftwareGL } from '@/lib/gpu';
 
-// Without a GPU (see lib/gpu.ts) the same scene draws at half resolution, every other display frame.
+// Without a GPU (see lib/gpu.ts) the same scene draws at half resolution, without MSAA, every third
+// display frame (~20 fps): there each frame is read back to the CPU and the main thread waits for it.
 const SOFT_DPR = 0.5;
-const SOFT_FRAME_STEP = 2;
+const SOFT_FRAME_STEP = 3;
 
 // Stop rendering entirely once the hero + intro (where the bust lives) have scrolled off screen.
-// On software WebGL the scene runs on demand and is invalidated at ~30 fps while visible.
+// On software WebGL the scene runs on demand and is invalidated every SOFT_FRAME_STEP frames while visible.
 function FrameGate({ isSoft }: { isSoft: boolean }) {
   const set = useThree((s) => s.set);
   const invalidate = useThree((s) => s.invalidate);
@@ -44,7 +45,7 @@ export default function Scene() {
       className="scene-canvas"
       dpr={isSoft ? SOFT_DPR : [1, dpr]}
       frameloop={isSoft ? 'demand' : 'always'}
-      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+      gl={{ antialias: !isSoft, alpha: false, powerPreference: 'high-performance' }}
       camera={{ position: [0, 0, 10], fov: 32, near: 0.1, far: 50 }}
       onCreated={({ gl }) => {
         gl.setClearColor('#f3f2ee');
